@@ -272,20 +272,54 @@ function Portrait() {
     const phone = window.matchMedia("(max-width: 1023px)").matches || shown <= SEQ.mh * 1.15;
     const dir = `${SEQ.dir}/${phone ? "m" : "d"}/`;
     const imgs: (HTMLImageElement | null)[] = new Array(SEQ.count).fill(null);
+    const settled: boolean[] = new Array(SEQ.count).fill(false); // loaded, or given up after retries
+    settled[0] = true;
     S.imgs = imgs;
     fx.debug.heroSeq.set = phone ? "m" : "d";
-    let left = SEQ.count - 1;
-    const done = () => {
-      if (--left > 0 || S.imgs !== imgs) return;
-      S.ready = imgs.every((im, i) => i === 0 || !!im);
-      fx.debug.heroSeq.ready = S.ready;
+    // the entrance first, then the smile, then the turn, a few at a time: decoding dozens of large frames at once
+    // can fail or stall on a busy machine, and one missing frame must never hold the whole performance back
+    const stage = (k: number) => (SRC[k] <= REST ? 0 : SRC[k] <= SMILE ? 1 : 2);
+    const queue = Array.from({ length: SEQ.count - 1 }, (_, k) => k + 1).sort((x, y) => stage(x) - stage(y) || x - y);
+    const entrance = queue.filter((k) => stage(k) === 0);
+    let active = 0;
+    const update = () => {
+      if (!S.ready && entrance.every((k) => settled[k])) S.ready = fx.debug.heroSeq.ready = true;
+      fx.debug.heroSeq.loaded = imgs.filter(Boolean).length;
+      fx.debug.heroSeq.failed = settled.filter((s, k) => s && k > 0 && !imgs[k]).length;
     };
-    for (let i = 1; i < SEQ.count; i++) {
+    const load = (k: number, attempt: number) => {
       const img = new Image();
       img.decoding = "async";
-      img.src = `${dir}${String(i).padStart(2, "0")}.webp`;
-      img.decode().then(() => { imgs[i] = img; done(); }, done);
-    }
+      img.src = `${dir}${String(k).padStart(2, "0")}.webp`;
+      img.decode().then(
+        () => {
+          if (S.imgs !== imgs) return;
+          imgs[k] = img;
+          settled[k] = true;
+          active--;
+          update();
+          pump();
+        },
+        () => {
+          if (S.imgs !== imgs) return;
+          if (attempt < 3) {
+            window.setTimeout(() => load(k, attempt + 1), 600 * attempt);
+            return;
+          }
+          settled[k] = true; // skipped: its neighbours crossfade across the gap
+          active--;
+          update();
+          pump();
+        },
+      );
+    };
+    const pump = () => {
+      while (active < 4 && queue.length) {
+        active++;
+        load(queue.shift()!, 1);
+      }
+    };
+    pump();
   };
 
   /** GPU texture for a frame: frame 0 stays resident; others share a small pool (least recently shown is reused). */
@@ -364,9 +398,16 @@ function Portrait() {
     if (Math.abs(target - S.f) < 0.01) S.f = target;
     let i = 0;
     while (i < SRC.length - 2 && SRC[i + 1] <= S.f) i++;
-    const mix = THREE.MathUtils.clamp((S.f - SRC[i]) / (SRC[i + 1] - SRC[i]), 0, 1);
-    const ta = texFor(i);
-    const tb = mix > 0.002 ? texFor(i + 1) : null;
+    // the nearest frames that have actually loaded on each side of the playhead (still loading, or skipped)
+    const has = (k: number) => (k === 0 ? !!S.tex0 : !!S.imgs[k]);
+    let a = i;
+    while (a > 0 && !has(a)) a--;
+    let b = i + 1;
+    while (b < SRC.length - 1 && !has(b)) b++;
+    if (!has(b)) b = a;
+    const mix = b > a ? THREE.MathUtils.clamp((S.f - SRC[a]) / (SRC[b] - SRC[a]), 0, 1) : 0;
+    const ta = texFor(a);
+    const tb = mix > 0.002 ? texFor(b) : null;
     if (ta) {
       u.uTexA.value = ta;
       u.uTexB.value = tb ?? ta;
@@ -374,8 +415,8 @@ function Portrait() {
     }
     // load the next frame in the direction of travel onto the GPU now, so showing it later costs nothing
     if (Math.abs(target - S.f) > 0.01) {
-      const ahead = target > S.f ? i + 2 : i - 1;
-      if (ahead > 0 && ahead < SRC.length) {
+      const ahead = target > S.f ? b + 1 : a - 1;
+      if (ahead > 0 && ahead < SRC.length && has(ahead)) {
         const t = texFor(ahead);
         if (t) gl.initTexture(t);
       }

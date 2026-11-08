@@ -8,7 +8,7 @@ export const fx = {
   profile: { p: 0 },
   city: { grow: 0, visible: false },
   reduce: false,
-  debug: { heroFrames: 0, heroTex: "", cityFrames: 0, heroSeq: { set: "", ready: false, i: 0, mix: 0, f: 0 } },
+  debug: { heroFrames: 0, heroTex: "", cityFrames: 0, heroSeq: { set: "", ready: false, i: 0, mix: 0, f: 0, loaded: 0, failed: 0 } },
 };
 
 if (typeof window !== "undefined") (window as unknown as { __fx: typeof fx }).__fx = fx;
