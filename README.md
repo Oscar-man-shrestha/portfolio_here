@@ -20,7 +20,7 @@ npm run build && npm run start   # http://localhost:4500
   - the hero is a short performance from a Google Flow clip animated from Oscar's real photo: he pushes his sunglasses up as the site opens, smiles when you hover over him, and smiles then turns his head as you scroll. 64 frames, never more than 4 clip frames apart, cut out with macOS Vision and played in WebGL with a neon rim, with sakura petals around him;
   - Contribution City (real GitHub data);
   - an open-source log;
-  - a pinned operator turntable of four real views;
+  - a pinned operator turntable: Oscar turns from front to back as you scroll, holding at each of four views. It's a Google Flow clip cut into 41 frames (`--person-only` drops the studio turntable disc);
   - contact with keyboard shortcuts.
 - `/work/[slug]`: one page per project, with facts from its README and a small interactive demo, clearly labelled as an illustration.
 - Motion respects `prefers-reduced-motion`, and a Motion switch in the header turns it off.

@@ -3,6 +3,7 @@
 // components never state facts about him.
 
 import headTurn from "./headturn.json";
+import turn360 from "./turn360.json";
 
 export type LinkStatus = "confirmed" | "from-readme" | "missing";
 
@@ -234,15 +235,21 @@ export const images = {
    * cached an earlier clip's frames (cached for a year) can never mix them in. `d` holds full-size frames, `m` phone ones.
    */
   headTurn,
+  /**
+   * The profile turntable: a Google Flow clip of Oscar turning on a studio turntable, made from his turnaround photos
+   * and cut out frame by frame (tools/headturn, --person-only drops the turntable disc). `marks` are the four views.
+   */
+  turn360,
   avatar: { src: "/img/avatar-pixel.webp", w: 480, h: 480, alt: "Pixel-art portrait of Oscar" },
   avatarAlt: { src: "/img/avatar-pixel-2.webp", w: 480, h: 480, alt: "Pixel-art portrait of Oscar in a track jacket" },
   full: { src: "/img/full-cutout.webp", w: 607, h: 1877, alt: "Oscar smiling, in a grey hoodie with headphones and a lanyard, holding a laptop" },
   turnW: 451,
   turnH: 1294,
+  // in the order the turntable passes them; the photos show when WebGL is off
   turnaround: [
     { src: "/img/turn-1.webp", label: "Front", alt: "Oscar, front view, black hoodie with headphones, holding a laptop" },
-    { src: "/img/turn-2.webp", label: "Side", alt: "Oscar, side view" },
     { src: "/img/turn-3.webp", label: "Three-quarter", alt: "Oscar, three-quarter view" },
+    { src: "/img/turn-2.webp", label: "Side", alt: "Oscar, side view" },
     { src: "/img/turn-4.webp", label: "Back", alt: "Oscar, back view" },
   ],
 };

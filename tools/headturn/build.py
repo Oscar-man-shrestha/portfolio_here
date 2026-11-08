@@ -31,9 +31,11 @@ ap.add_argument("--turn", default="20:76", help="first:last frame of the motion 
 ap.add_argument("--marks", default="", help="named frames always included, e.g. rest=72,smile=124")
 ap.add_argument("--lens", default="860:180:1240:560", help="x0:y0:x1:y1 (inside --crop) where a far lens can appear, or 'none'")
 ap.add_argument("--dry", action="store_true", help="only print the picked frames")
+ap.add_argument("--person-only", action="store_true", help="keep only the person (drops props such as a turntable disc); needs segp")
+ap.add_argument("--max-height", type=int, default=0, help="scale the full-size set down to at most this height (0 = keep)")
 a = ap.parse_args()
-if a.lens != "none" and not a.segp:
-    ap.error("the lens repair needs segp (or pass --lens none)")
+if (a.lens != "none" or a.person_only) and not a.segp:
+    ap.error("the lens repair and --person-only need segp")
 
 
 def fix_lens(inst_a, person, roi):
@@ -130,10 +132,15 @@ with tempfile.TemporaryDirectory() as work:
             print("check frame", k, r.stdout.strip(), flush=True)
         src = np.asarray(Image.open(f).convert("RGB"))
         alpha = np.asarray(Image.open(os.path.join(work, f"c{k:02d}_all.png")).convert("RGBA"))[..., 3].astype(np.float32) / 255
-        if roi:
+        if roi or a.person_only:
             vision([a.segp, f, os.path.join(work, f"p{k:02d}.png")], os.path.join(work, f"p{k:02d}.png"), k)
             person = np.asarray(Image.open(os.path.join(work, f"p{k:02d}.png")).convert("L"))
+        if roi:
             alpha = fix_lens(np.round(alpha * 255).astype(np.uint8), person, roi)
+        if a.person_only:
+            # the subject mask sometimes takes in a prop (a turntable disc); the person matte never does
+            keep = ndi.gaussian_filter(ndi.binary_dilation(person > 128, iterations=5).astype(np.float32), 1.5)
+            alpha = alpha * np.clip(keep, 0, 1)
         return Image.fromarray(np.dstack([src, np.round(alpha * 255).astype(np.uint8)]), "RGBA")
 
     ims = [cut(k) for k in range(n)]
@@ -150,6 +157,11 @@ with tempfile.TemporaryDirectory() as work:
     bw -= bw % 2
     bh -= bh % 2
     box = (box[0], box[1], box[0] + bw, box[1] + bh)
+    dw, dh = bw, bh
+    if a.max_height and bh > a.max_height:
+        dh = a.max_height
+        dw = round(bw * dh / bh)
+        dw -= dw % 2
     mh = a.phone_height
     mw = round(bw * mh / bh)
     mw -= mw % 2
@@ -170,7 +182,7 @@ with tempfile.TemporaryDirectory() as work:
     jobs = []
     for k, im in enumerate(ims):
         c = im.crop(box)
-        c.save(os.path.join(work, f"d{k:02d}.png"))
+        (c if (dw, dh) == (bw, bh) else c.convert("RGBa").resize((dw, dh), Image.LANCZOS).convert("RGBA")).save(os.path.join(work, f"d{k:02d}.png"))
         c.convert("RGBa").resize((mw, mh), Image.LANCZOS).convert("RGBA").save(os.path.join(work, f"m{k:02d}.png"))
         jobs += [(os.path.join(work, f"{sub}{k:02d}.png"), os.path.join(out, sub, f"{k:02d}.webp")) for sub in ("d", "m")]
     enc = lambda j: subprocess.run(["cwebp", "-quiet", "-q", "80", "-m", "6", "-sharp_yuv", "-alpha_q", "100", j[0], "-o", j[1]], check=True)
@@ -178,6 +190,6 @@ with tempfile.TemporaryDirectory() as work:
         list(pool.map(enc, jobs))
 
 # 6. frame numbers, motion positions and marks for the site
-json.dump({"count": n, "fps": fps, "frames": frames, "pos": pos, "marks": marks, "w": bw, "h": bh, "mw": mw, "mh": mh,
+json.dump({"count": n, "fps": fps, "frames": frames, "pos": pos, "marks": marks, "w": dw, "h": dh, "mw": mw, "mh": mh,
            "dir": f"{a.url.rstrip('/')}/{ver}"}, open(a.json, "w"), indent=2)
-print(f"wrote {n} frames ({bw}×{bh}, phones {mw}×{mh}) and {a.json}")
+print(f"wrote {n} frames ({dw}×{dh}, phones {mw}×{mh}) and {a.json}")

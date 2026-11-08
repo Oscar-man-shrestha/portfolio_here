@@ -1,8 +1,9 @@
 import { person } from "@/lib/content";
 import Operator from "./Operator";
 
-// Operator profile: a pinned, scroll-driven turntable of Oscar's four real views, his full name stacked behind
-// with echo outlines (from the Soka / SECONDVISION reference), a red sun, a view rail and a character card.
+// Operator profile: a pinned, scroll-driven turntable (Oscar turning from front to back, from a Google Flow clip),
+// his full name stacked behind with echo outlines (from the Soka / SECONDVISION reference), a red sun, a view rail
+// and a character card.
 export default function Profile() {
   return (
     <section className="sec profile op" id="profile" aria-labelledby="profileTitle">
