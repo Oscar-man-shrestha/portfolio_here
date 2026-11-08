@@ -1059,3 +1059,12 @@ html.reduce-motion .badge__ring svg, html.reduce-motion .panel--unit .scan { ani
   .op__name { font-size: 13.5vw; }
   .op__card { height: auto; bottom: 66px; }
 }
+
+/* v6: the "Who is Oscar?" intro film */
+.intro__actions { display: inline-flex; align-items: center; gap: 8px; }
+.intro__sound { padding: 9px 14px; border: 1px solid rgba(236, 236, 230, 0.4); border-radius: 999px; background: rgba(0, 0, 0, 0.35); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: background 0.3s, color 0.3s; }
+.intro__sound:hover, .intro__sound[aria-pressed="true"] { background: var(--color-paper); color: var(--color-ink); }
+/* the film ends on a city of red screens: a red flash carries it into the hero's red sun */
+.intro__flash { background: #c8102c; }
+.intro__sound, .intro__skip { white-space: nowrap; }
+@media (max-width: 480px) { .intro__sound, .intro__skip { padding: 8px 11px; } .intro__actions { gap: 6px; } }

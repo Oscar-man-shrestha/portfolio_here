@@ -8,13 +8,14 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import Lenis from "lenis";
+import { FILM } from "@/lib/film";
 import { fx } from "@/lib/fx";
 import { useSite } from "@/lib/store";
 
 gsap.registerPlugin(ScrollTrigger, SplitText, ScrambleTextPlugin);
 
-const T_NAME = 6.2; // he has turned to camera
-const T_CUT = 8.98; // the laptop light-burst is building (peak luma measured at 9.29 s)
+const T_NAME = FILM.tName; // his face is first seen clearly, smiling at the laptop
+const T_CUT = FILM.tCut; // every screen in the city has turned red
 
 type Dispose = () => void;
 declare global {
@@ -153,6 +154,8 @@ function run(): Dispose {
       gsap.to(intro, { opacity: 0, duration: 0.3, ease: "power1.out", onComplete: () => intro.remove() });
       return;
     }
+    // the soundtrack fades with the flash instead of stopping dead
+    if (video && !video.muted) gsap.to(video, { volume: 0, duration: 0.5, ease: "power1.out" });
     gsap.timeline()
       .to(flash, { opacity: 1, duration: mode === "film" ? 0.3 : 0.22, ease: "power2.in" })
       .add(() => { video?.pause(); enterSite(true, false); })
@@ -161,6 +164,15 @@ function run(): Dispose {
   };
 
   listen($("#skipIntro") ?? document.createElement("i"), "click", () => { if (ready) reveal("skip"); else { skipRequested = true; status("Loading"); } });
+  // browsers only start videos muted; the film's sirens, rain and boom play once the visitor asks for sound
+  const soundBtn = $<HTMLButtonElement>("#soundIntro");
+  if (soundBtn && video) listen(soundBtn, "click", () => {
+    video.muted = !video.muted;
+    if (!video.muted) video.volume = 1;
+    soundBtn.setAttribute("aria-pressed", String(!video.muted));
+    const state = soundBtn.querySelector("[data-state]");
+    if (state) state.textContent = video.muted ? "off" : "on";
+  });
   if (enterBtn) listen(enterBtn, "click", () => reveal(reduce ? "reduce" : "skip"));
   listen(document, "keydown", (e) => {
     if ((e as KeyboardEvent).key === "Escape" && !revealed && intro) { if (ready) reveal("skip"); else skipRequested = true; }

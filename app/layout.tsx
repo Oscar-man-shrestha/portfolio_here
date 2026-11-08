@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Mona_Sans, Michroma, JetBrains_Mono, Metal_Mania } from "next/font/google";
 import localFont from "next/font/local";
+import { FILM } from "@/lib/film";
 import "./globals.css";
 
 // All three families are SIL Open Font License 1.1 (Google Fonts). next/font downloads them at build time and
@@ -42,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${mona.variable} ${michroma.variable} ${jet.variable} ${metal.variable} ${jp.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
-        <link rel="preload" as="image" href="/video/poster.jpg" fetchPriority="high" />
+        <link rel="preload" as="image" href={FILM.poster} fetchPriority="high" />
       </head>
       <body>{children}</body>
     </html>

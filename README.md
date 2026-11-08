@@ -14,7 +14,9 @@ npm run build && npm run start   # http://localhost:4500
 
 ## What's inside
 
-- `/`: the intro film as loader, then a scroll-driven HUD:
+- `/`: the intro film as loader, then a scroll-driven HUD.
+  - The film is "Who is Oscar?", a 43-second cyber-thriller made in Google Flow (`lib/film.ts`). It plays muted until the visitor presses Sound, and a red flash cuts into the hero.
+  - On the site copy, a logo-like emblem is cut out and the corner AI mark removed. The footer credits Google Flow.
   - the hero is a short performance from a Google Flow clip animated from Oscar's real photo: he pushes his sunglasses up as the site opens, smiles when you hover over him, and smiles then turns his head as you scroll. 64 frames, never more than 4 clip frames apart, cut out with macOS Vision and played in WebGL with a neon rim, with sakura petals around him;
   - Contribution City (real GitHub data);
   - an open-source log;

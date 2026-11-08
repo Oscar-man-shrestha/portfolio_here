@@ -29,7 +29,7 @@ export default function Contact() {
       <img className="contact__fig" src={images.full.src} alt="" width={images.full.w} height={images.full.h} loading="lazy" decoding="async" aria-hidden="true" />
       <footer className="ftr hud">
         <span>© 2026 {person.name}</span>
-        <span>Built with Next.js, Three.js &amp; GSAP · Activity data from GitHub · Hero portrait animated from Oscar&apos;s photo with Google Flow</span>
+        <span>Built with Next.js, Three.js &amp; GSAP · Activity data from GitHub · Intro film and hero portrait made with Google Flow from Oscar&apos;s photos</span>
         <span style={{ display: "flex", gap: 22 }}>
           <button type="button" id="replayIntro">Replay intro</button>
           <a href="#top">Escape ↑</a>
