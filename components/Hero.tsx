@@ -37,6 +37,9 @@ export default function Hero() {
       </div>
       {/* WebGL covers the whole hero so the portrait's particles can leave its frame while scrolling */}
       <div className="hero__gl" aria-hidden="true"><HeroGLMount /></div>
+      {/* Oscar Man Shrestha in katakana, as vertical neon signage */}
+      <p className="hero__kana" aria-hidden="true" lang="ja">オスカー・マン・シュレスタ</p>
+      <span className="hero__seal" aria-hidden="true" lang="ja">桜</span>
 
       <p className="hero__outline" aria-hidden="true"><span className="hero__word"><Oscar /></span></p>
 

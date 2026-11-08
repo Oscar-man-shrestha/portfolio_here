@@ -5,7 +5,7 @@ export default function Contact() {
   return (
     <section className="sec contact" id="contact" aria-labelledby="contactTitle">
       <div className="contact__top">
-        <p className="hud" style={{ margin: 0 }}><span className="sq red" />05 // <span className="tag-red">Ready?</span></p>
+        <p className="hud" style={{ margin: 0 }}><span className="sq red" />05 // 連絡 // <span className="tag-red">Ready?</span></p>
         <p className="hud dim" style={{ margin: 0 }}>Press <kbd className="mono">E</kbd> to email</p>
       </div>
       <h2 className="contact__title" id="contactTitle">
@@ -24,7 +24,7 @@ export default function Contact() {
           </li>
         ))}
       </ul>
-      <div className="contact__flood" aria-hidden="true" data-text="OMS" />
+      <div className="contact__flood" aria-hidden="true" data-text="連絡" lang="ja" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="contact__fig" src={images.full.src} alt="" width={images.full.w} height={images.full.h} loading="lazy" decoding="async" aria-hidden="true" />
       <footer className="ftr hud">

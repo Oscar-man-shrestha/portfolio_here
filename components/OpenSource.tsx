@@ -4,7 +4,7 @@ export default function OpenSource() {
   return (
     <section className="sec sec--paper oss" id="oss" aria-labelledby="ossTitle">
       <header className="sec__head">
-        <p className="sec__kicker hud"><span className="sq" />03 // Patch log</p>
+        <p className="sec__kicker hud"><span className="sq" />03 // 公開 // Patch log</p>
         <h2 className="sec__title split" data-echo="Open source" id="ossTitle">Open source</h2>
         <p className="sec__lede">Pull requests to libraries the data and ML community relies on.</p>
       </header>

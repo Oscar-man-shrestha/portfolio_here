@@ -983,3 +983,78 @@ html.reduce-motion .badge__ring svg, html.reduce-motion .panel--unit .scan { ani
 .bd__packet::before { content: attr(data-label); }
 .bd__steps li.on b { color: var(--color-signal-ink); }
 .bd__draft.sent .dim { color: #4a4d43; }
+
+/* ==========================================================================
+   v4 — cyberpunk sakura / yakuza layer
+   ========================================================================== */
+:root {
+  --color-sakura: #ff8fb3;
+  --font-display: var(--font-mona), var(--font-jp), "Helvetica Neue", Arial, sans-serif;
+  --font-hud: var(--font-michroma), var(--font-jp), "Eurostile", "Helvetica Neue", Arial, sans-serif;
+  --neon-sakura: 0 0 4px rgba(255, 143, 179, 0.9), 0 0 14px rgba(255, 92, 138, 0.75), 0 0 38px rgba(255, 46, 76, 0.45);
+  /* seigaiha (traditional wave pattern) as an SVG tile */
+  --seigaiha: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='24' viewBox='0 0 48 24'><defs><g id='w'><circle r='23.5' fill='%2309090a' stroke='%23ff5c8a' stroke-opacity='.55'/><circle r='17.5' fill='none' stroke='%23ff5c8a' stroke-opacity='.4'/><circle r='11.5' fill='none' stroke='%23ff5c8a' stroke-opacity='.3'/><circle r='5.5' fill='none' stroke='%23ff5c8a' stroke-opacity='.22'/></g></defs><use href='%23w' x='0' y='0'/><use href='%23w' x='48' y='0'/><use href='%23w' x='24' y='12'/><use href='%23w' x='0' y='24'/><use href='%23w' x='48' y='24'/></svg>");
+}
+.seigaiha { background-image: var(--seigaiha); background-size: 48px 24px; }
+
+/* hero: neon katakana and a hanko seal */
+.hero__kana {
+  position: absolute; z-index: 4; margin: 0; left: calc(var(--rail-l) + 26px); top: calc(var(--header-h) + 22px);
+  writing-mode: vertical-rl; font: 400 clamp(20px, 1.9vw, 30px)/1 var(--font-jp); letter-spacing: 0.14em;
+  color: #ffd6e3; text-shadow: var(--neon-sakura); pointer-events: none;
+}
+.hero__seal {
+  position: absolute; z-index: 5; right: calc(var(--rail-r) + 24px); top: calc(var(--header-h) + 22px);
+  width: 48px; height: 48px; display: grid; place-items: center; rotate: -4deg;
+  background: var(--color-signal); color: var(--color-paper); font: 400 28px/1 var(--font-jp);
+  box-shadow: 0 0 0 2px var(--color-signal), inset 0 0 0 3px rgba(9, 9, 10, 0.25); border-radius: 3px;
+  -webkit-mask-image: radial-gradient(circle at 30% 20%, #000 60%, rgba(0, 0, 0, 0.85) 61%, #000 75%); mask-image: radial-gradient(circle at 30% 20%, #000 60%, rgba(0, 0, 0, 0.85) 61%, #000 75%);
+}
+@media (max-width: 1023px) {
+  .hero__kana { left: auto; right: var(--gutter); top: calc(var(--header-h) + 96px); font-size: 17px; }
+  .hero__seal { right: auto; left: var(--gutter); top: calc(var(--header-h) + 14px); width: 40px; height: 40px; font-size: 22px; }
+}
+
+/* the type band sits on a faint wave field */
+.mq { isolation: isolate; }
+.mq::before { content: ""; position: absolute; inset: 0; z-index: -1; background-image: var(--seigaiha); background-size: 48px 24px; opacity: 0.18; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 40%, #000 60%, transparent); }
+
+/* operator: waves in front of the sun, full-width stage so petals are not clipped */
+.op__waves { position: absolute; z-index: 0; left: 0; right: 0; bottom: 0; height: 34%; opacity: 0.55; -webkit-mask-image: linear-gradient(to top, #000 10%, transparent); mask-image: linear-gradient(to top, #000 10%, transparent); pointer-events: none; }
+.op__stage { left: 0; right: 0; width: auto; translate: none; }
+.op__fallback { left: 50%; width: min(48vw, 600px); translate: -50% 0; }
+.op__vert span { font-family: var(--font-jp); letter-spacing: 0.2em; color: var(--color-sakura); text-shadow: var(--neon-sakura); }
+@media (max-width: 1023px) { .op__stage { left: 0; right: 0; width: auto; } .op__fallback { width: min(80vw, 440px); } }
+
+/* contact: 連絡 ("contact") as the flood glyph */
+.contact__flood { font-family: var(--font-jp); font-weight: 400; font-variation-settings: normal; letter-spacing: 0; font-size: 26vw; color: #151517; bottom: 90px; }
+
+/* work cards: GSAP drives a 3D tilt; CSS keeps only the shadow */
+.mission { perspective: 1400px; }
+.mission__card { transform-style: preserve-3d; will-change: transform; }
+.mission__card:hover, .mission__card:has(:focus-visible) { transform: none; }
+.no-tilt .mission__card:hover, .no-tilt .mission__card:has(:focus-visible) { transform: translate(-4px, -4px); }
+/* shorter fade: the suit stays opaque so the name only shows beside Oscar, never through him */
+.hero__portrait { -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 12%); mask-image: linear-gradient(to top, transparent 0%, #000 12%); }
+
+/* v4 fixes after the four-size scan */
+/* small labels: crisp system Japanese fonts (the heavy display face only for big neon / glyphs) */
+:root { --font-hud: var(--font-michroma), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", "Noto Sans CJK JP", "Meiryo", sans-serif; }
+.hero__seal { font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Noto Serif CJK JP", serif; font-weight: 700; font-size: 26px; }
+@media (max-width: 1023px) { .hero__seal { font-size: 21px; } }
+/* operator: the name stays inside the screen and clear of the card */
+.op__name { font-size: min(13.5vw, 18svh); translate: 0 -60%; }
+.op__card { right: var(--gutter); bottom: 72px; width: min(300px, 24vw); height: 176px; }
+.op__card .op__num { font-size: 46px; margin-bottom: 6px; }
+@media (max-width: 1023px) {
+  .op__name { font-size: 13.5vw; translate: 0 -66%; }
+  .op__card { left: var(--gutter); right: var(--gutter); width: auto; bottom: 70px; height: 112px; }
+}
+/* card sits in the corner and sizes to its tallest slide, clear of the name */
+.op__name { font-size: min(13.5vw, 16svh); }
+.op__card { display: grid; height: auto; bottom: 22px; }
+.op__slide { grid-area: 1 / 1; position: relative; inset: auto; }
+@media (max-width: 1023px) {
+  .op__name { font-size: 13.5vw; }
+  .op__card { height: auto; bottom: 66px; }
+}

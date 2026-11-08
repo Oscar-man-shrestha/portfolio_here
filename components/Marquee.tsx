@@ -3,7 +3,7 @@
 // accessibility tree and contrast checks (WCAG 1.4.3 exempts pure decoration).
 const rows = [
   { cls: "", ghost: false, words: ["Machine learning", "Security", "Web"] },
-  { cls: "mq__row--outline", ghost: false, words: ["Oscar Man Shrestha", "Portfolio 2026"] },
+  { cls: "mq__row--outline", ghost: false, words: ["Oscar Man Shrestha", "オスカー", "Portfolio 2026"] },
   { cls: "mq__row--dim", ghost: true, words: ["Selected work", "Open source", "Activity"] },
 ];
 

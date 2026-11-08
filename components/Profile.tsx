@@ -14,7 +14,7 @@ export default function Profile() {
       </div>
       <div className="op__pin">
         <div className="op__labels hud" aria-hidden="true">
-          <span className="red"><span className="sq" />04 // Operator profile</span>
+          <span className="red"><span className="sq" />04 // 人物 // Operator profile</span>
           <span className="dim">Scroll to turn · 4 views</span>
         </div>
         <div className="op__sun" aria-hidden="true" />
@@ -23,7 +23,8 @@ export default function Profile() {
             <span key={w} className={`op__line l${k}`} data-echo={w}><span>{w}</span></span>
           ))}
         </p>
-        <p className="op__vert hud" aria-hidden="true">Operator // Profile // {person.base} // 2026</p>
+        <p className="op__vert hud" aria-hidden="true"><span lang="ja">オスカー・マン・シュレスタ</span> // Operator // {person.base} // 2026</p>
+        <div className="op__waves seigaiha" aria-hidden="true" />
         <Operator />
       </div>
     </section>

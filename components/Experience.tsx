@@ -182,13 +182,15 @@ function run(): Dispose {
     if (reduce || !heroPin) return;
     const pinST = heroPin;
     const heroChars = $$(".hero__first .char"), outlineChars = $$(".hero__outline .char");
+    // calm exit while the portrait turns: the name parts slide apart, the HUD dims, the sun settles back
     gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { start: () => pinST.start, end: () => pinST.end, scrub: 0.9 } })
-      .to(".hero__sun", { scale: 2.4, opacity: 0, duration: 1, ease: "power1.in" }, 0)
-      .to(heroChars, { yPercent: (k: number) => (k % 2 ? -60 : 70), rotationX: (k: number) => (k % 2 ? 65 : -65), opacity: 0, stagger: 0.04, duration: 0.6 }, 0.05)
-      .to(outlineChars, { yPercent: (k: number) => (k % 2 ? 90 : -90), opacity: 0, stagger: 0.04, duration: 0.6 }, 0.05)
-      .to(".hero__last, .hero__role, .hero__ctas", { y: -40, opacity: 0, duration: 0.35 }, 0.1)
-      .to(".hero .panel", { opacity: 0, x: (k: number) => (k % 2 ? 30 : -30), duration: 0.4, stagger: 0.03 }, 0.15)
-      .to(".hero__lines, .hero__bar", { opacity: 0, duration: 0.5 }, 0.2);
+      .to(".hero__sun", { scale: 1.18, yPercent: 8, duration: 1 }, 0)
+      .to(heroChars, { xPercent: (k: number) => (k - (heroChars.length - 1) / 2) * 14, opacity: 0.25, duration: 0.8 }, 0.15)
+      .to(outlineChars, { xPercent: (k: number) => (k - (outlineChars.length - 1) / 2) * 18, opacity: 0, duration: 0.8 }, 0.15)
+      .to(".hero__last, .hero__role, .hero__ctas", { y: -24, opacity: 0, duration: 0.4 }, 0.2)
+      .to(".hero .panel", { opacity: 0.15, duration: 0.5, stagger: 0.03 }, 0.25)
+      .to(".hero__lines, .hero__bar", { opacity: 0, duration: 0.5 }, 0.3)
+      .to(".hero__kana", { opacity: 1, duration: 0.5 }, 0.2);
     ScrollTrigger.refresh();
   }
 
@@ -282,6 +284,15 @@ function run(): Dispose {
   let heroVisible = true;
   function idleGlitch() {
     if (reduce) return;
+    // neon katakana: flickers like a failing tube now and then
+    const kana = $$(".hero__kana, .op__vert span");
+    const flicker = () => {
+      if (!reduce && !document.hidden) {
+        gsap.timeline().to(kana, { keyframes: [{ opacity: 0.25, duration: 0.04 }, { opacity: 1, duration: 0.05 }, { opacity: 0.4, duration: 0.06 }, { opacity: 1, duration: 0.08 }] });
+      }
+      later(flicker, 2600 + Math.random() * 5200);
+    };
+    later(flicker, 1800);
     const loop = () => {
       if (!reduce && heroVisible && !document.hidden) {
         const amp = 0.25 + Math.random() * 0.3;
@@ -303,6 +314,9 @@ function run(): Dispose {
         const y = st.scroll();
         header.classList.toggle("is-hidden", y > innerHeight * 0.7 && y > lastY && !root.classList.contains("menu-open"));
         lastY = y;
+        // scroll speed becomes wind for the sakura petals (decays in the render loops)
+        const wv = gsap.utils.clamp(-1, 1, st.getVelocity() / 2600);
+        if (Math.abs(wv) > Math.abs(fx.wind.v)) fx.wind.v = wv;
         const on = Math.round(st.progress * cells.length);
         cells.forEach((c, i) => c.classList.toggle("on", i < on));
       },
@@ -321,8 +335,8 @@ function run(): Dispose {
       // hero, pinned for one extra screen: the photo hands over to particles that lift into 3D, turn and drift
       // away; the name splits in depth, the red sun swells and the HUD powers down.
       heroPin = ScrollTrigger.create({
-        trigger: ".hero", start: "top top", end: "+=110%", pin: true, anticipatePin: 1,
-        onUpdate: (s) => gsap.to(fx.hero, { scatter: s.progress, duration: 0.7, ease: "power2.out", overwrite: "auto" }),
+        trigger: ".hero", start: "top top", end: "+=110%", pin: true, anticipatePin: 1, refreshPriority: 3,
+        onUpdate: (s) => gsap.to(fx.hero, { turn: s.progress, duration: 0.8, ease: "power2.out", overwrite: "auto" }),
       });
       heroScrollReady();
       ScrollTrigger.create({
@@ -440,7 +454,7 @@ function run(): Dispose {
         const tween = gsap.to(track, {
           x: () => -dist(), ease: "none",
           scrollTrigger: {
-            trigger: pin, start: "top top", end: () => "+=" + dist(), pin: true, scrub: reduce ? true : 0.8, invalidateOnRefresh: true, anticipatePin: 1, refreshPriority: 1,
+            trigger: pin, start: "top top", end: () => "+=" + dist(), pin: true, scrub: reduce ? true : 0.8, invalidateOnRefresh: true, anticipatePin: 1, refreshPriority: 2,
             onUpdate: (st) => {
               if (bar) bar.style.transform = `scaleX(${st.progress})`;
               if (count) count.textContent = `${String(Math.min(cards.length, 1 + Math.floor(st.progress * cards.length))).padStart(2, "0")}/${String(cards.length).padStart(2, "0")}`;
@@ -500,6 +514,11 @@ function run(): Dispose {
 
   function setupOss() {
     if (reduce) return;
+    // the paper section cuts in on a diagonal as it scrolls up over the dark one
+    gsap.fromTo(".oss", { clipPath: "polygon(0 14%, 100% 0, 100% 100%, 0 100%)" }, {
+      clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)", ease: "none",
+      scrollTrigger: { trigger: ".oss", start: "top bottom", end: "top 35%", scrub: true },
+    });
     gsap.from(".patch", { clipPath: "inset(0 100% 0 0)", duration: 1.1, ease: "expo.inOut", stagger: 0.12, clearProps: "clipPath", scrollTrigger: { trigger: ".patches", start: "top 85%", once: true } });
     gsap.from(".slot", {
       opacity: 0, duration: 0.5, stagger: 0.1, ease: "steps(3)",
@@ -513,7 +532,7 @@ function run(): Dispose {
     // one screen of scroll per view change: 4 views → +300%
     let view = 0;
     const st = ScrollTrigger.create({
-      trigger: pin, start: "top top", end: "+=300%", pin: true, scrub: reduce ? true : 0.6, anticipatePin: 1,
+      trigger: pin, start: "top top", end: "+=300%", pin: true, scrub: reduce ? true : 0.6, anticipatePin: 1, refreshPriority: 1,
       onUpdate: (s) => {
         fx.profile.p = s.progress * 3;
         const v = Math.max(0, Math.min(3, Math.floor(fx.profile.p + 0.5)));
@@ -576,8 +595,19 @@ function run(): Dispose {
       }
     }, { passive: true });
 
-    if (!fine || reduce) return;
+    if (!fine || reduce) { root.classList.add("no-tilt"); return; }
     root.classList.add("has-cursor");
+    // work cards tilt in 3D toward the pointer and lift on hover
+    $$(".mission__card").forEach((card) => {
+      const rx = gsap.quickTo(card, "rotationX", { duration: 0.5, ease: "power3" }), ry = gsap.quickTo(card, "rotationY", { duration: 0.5, ease: "power3" });
+      listen(card, "pointermove", (ev) => {
+        const e = ev as PointerEvent, r = card.getBoundingClientRect();
+        ry(((e.clientX - r.left) / r.width - 0.5) * 7);
+        rx(-((e.clientY - r.top) / r.height - 0.5) * 6);
+      });
+      listen(card, "pointerenter", () => gsap.to(card, { x: -4, y: -4, duration: 0.4, ease: "power3" }));
+      listen(card, "pointerleave", () => { rx(0); ry(0); gsap.to(card, { x: 0, y: 0, duration: 0.5, ease: "power3" }); });
+    });
     const cur = $(".cursor")!, read = $(".cursor__read")!;
     const xTo = gsap.quickTo(cur, "x", { duration: 0.18, ease: "power3" });
     const yTo = gsap.quickTo(cur, "y", { duration: 0.18, ease: "power3" });

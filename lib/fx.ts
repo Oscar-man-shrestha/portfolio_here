@@ -1,7 +1,9 @@
 // Plain mutable values shared between the GSAP choreography (DOM side) and the WebGL frame loops.
 // GSAP tweens these numbers; the render loops read them every frame. No React state, no re-renders.
 export const fx = {
-  hero: { reveal: 0, glitch: 0, hover: 0, mx: 0, my: 0, scroll: 0, scatter: 0 },
+  hero: { reveal: 0, glitch: 0, hover: 0, mx: 0, my: 0, scroll: 0, turn: 0 },
+  /** Sakura wind from scroll velocity (−1…1), shared by every scene with petals. */
+  wind: { v: 0 },
   /** Operator profile turntable: 0 → 3 across the pinned section (one unit per view change). */
   profile: { p: 0 },
   city: { grow: 0, visible: false },

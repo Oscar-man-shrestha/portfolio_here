@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Mona_Sans, Michroma, JetBrains_Mono, Metal_Mania } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
 // All three families are SIL Open Font License 1.1 (Google Fonts). next/font downloads them at build time and
@@ -8,6 +9,8 @@ const mona = Mona_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-m
 const michroma = Michroma({ subsets: ["latin"], weight: "400", variable: "--font-michroma", display: "swap" });
 const jet = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-jet", display: "swap" });
 // Accent numerals in the spirit of the "Bagru" reference (hardcore letterforms). OFL 1.1.
+// Dela Gothic One (OFL 1.1), subset to the 30 Japanese characters the site uses (4 KB).
+const jp = localFont({ src: "./fonts/dela-gothic-one-subset.woff2", variable: "--font-jp", display: "swap", preload: false });
 const metal = Metal_Mania({ subsets: ["latin"], weight: "400", variable: "--font-metal", display: "swap", preload: false });
 
 export const metadata: Metadata = {
@@ -36,7 +39,7 @@ if(q.has("skip")||(seen&&!q.has("intro")))r.classList.add("no-intro");})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${mona.variable} ${michroma.variable} ${jet.variable} ${metal.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${mona.variable} ${michroma.variable} ${jet.variable} ${metal.variable} ${jp.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
         <link rel="preload" as="image" href="/video/poster.jpg" fetchPriority="high" />

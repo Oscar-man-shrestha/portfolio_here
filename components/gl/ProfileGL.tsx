@@ -8,6 +8,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { images } from "@/lib/content";
 import { fx } from "@/lib/fx";
+import Petals from "./Petals";
 
 const ASPECT = images.turnW / images.turnH;
 const H = 2; // card height in world units
@@ -147,7 +148,9 @@ export default function ProfileGL() {
       style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
       aria-hidden="true"
     >
+      <Petals layer={0} count={70} scale={1.15} />
       <Turntable />
+      <Petals layer={1} count={45} scale={1.15} />
     </Canvas>
   );
 }

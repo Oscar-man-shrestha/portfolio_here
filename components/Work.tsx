@@ -6,7 +6,7 @@ export default function Work() {
   return (
     <section className="sec sec--paper work" id="work" aria-labelledby="workTitle">
       <header className="sec__head">
-        <p className="sec__kicker hud"><span className="sq" />01 // Mission select</p>
+        <p className="sec__kicker hud"><span className="sq" />01 // 任務 // Mission select</p>
         <h2 className="sec__title split" data-echo="Selected work" id="workTitle">Selected work</h2>
         <p className="sec__lede">Selected projects. Open any of them for a short interactive demo, or go straight to the source.</p>
       </header>
