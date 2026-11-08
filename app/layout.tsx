@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Mona_Sans, Michroma, JetBrains_Mono } from "next/font/google";
+import { Mona_Sans, Michroma, JetBrains_Mono, Metal_Mania } from "next/font/google";
 import "./globals.css";
 
 // All three families are SIL Open Font License 1.1 (Google Fonts). next/font downloads them at build time and
@@ -7,6 +7,8 @@ import "./globals.css";
 const mona = Mona_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-mona", display: "swap" });
 const michroma = Michroma({ subsets: ["latin"], weight: "400", variable: "--font-michroma", display: "swap" });
 const jet = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-jet", display: "swap" });
+// Accent numerals in the spirit of the "Bagru" reference (hardcore letterforms). OFL 1.1.
+const metal = Metal_Mania({ subsets: ["latin"], weight: "400", variable: "--font-metal", display: "swap", preload: false });
 
 export const metadata: Metadata = {
   title: "Oscar Man Shrestha · Software Engineer",
@@ -28,13 +30,13 @@ try{rm=matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}
 try{off=localStorage.getItem("oms.motion")==="off"}catch(e){}
 if(q.get("motion")==="reduce")rm=true;
 try{seen=sessionStorage.getItem("oms.intro")==="1"}catch(e){}
-r.classList.add("js","is-loading");
+r.classList.add("js");if(location.pathname==="/")r.classList.add("is-loading");
 if(rm||off)r.classList.add("reduce-motion");
 if(q.has("skip")||(seen&&!q.has("intro")))r.classList.add("no-intro");})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${mona.variable} ${michroma.variable} ${jet.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${mona.variable} ${michroma.variable} ${jet.variable} ${metal.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
         <link rel="preload" as="image" href="/video/poster.jpg" fetchPriority="high" />

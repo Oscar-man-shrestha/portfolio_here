@@ -12,7 +12,7 @@ export default function Activity() {
     <section className="sec activity" id="activity" aria-labelledby="activityTitle">
       <header className="sec__head sec__head--wide">
         <p className="sec__kicker hud"><span className="sq" />02 // Player stats</p>
-        <h2 className="sec__title split" id="activityTitle">Contribution city</h2>
+        <h2 className="sec__title split" data-echo="Contribution city" id="activityTitle">Contribution city</h2>
         <p className="sec__lede">My last 12 months on GitHub: one tower per day, {fmtDay(contrib.from)} to {fmtDay(contrib.to)}.</p>
       </header>
       <div className="activity__grid">

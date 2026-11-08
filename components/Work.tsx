@@ -7,8 +7,8 @@ export default function Work() {
     <section className="sec sec--paper work" id="work" aria-labelledby="workTitle">
       <header className="sec__head">
         <p className="sec__kicker hud"><span className="sq" />01 // Mission select</p>
-        <h2 className="sec__title split" id="workTitle">Selected work</h2>
-        <p className="sec__lede">Selected projects. Each one links to its source.</p>
+        <h2 className="sec__title split" data-echo="Selected work" id="workTitle">Selected work</h2>
+        <p className="sec__lede">Selected projects. Open any of them for a short interactive demo, or go straight to the source.</p>
       </header>
       <div className="work__pin">
         <ol className="work__track" id="workTrack">
@@ -43,9 +43,15 @@ export default function Work() {
                     <ul className="mission__tags hud">
                       {p.tags.map((t) => <li key={t}>{t}</li>)}
                     </ul>
-                    <a className="mission__cta hud" href={p.url} target="_blank" rel="noopener noreferrer">
-                      View source<span className="sr-only">: {p.title} on GitHub (opens in a new tab)</span> <span aria-hidden="true">↗</span>
-                    </a>
+                    <span className="mission__links">
+                      {/* the whole card opens the project's demo page; Source stays a separate link above it */}
+                      <a className="mission__cta hud" href={`/work/${p.id}`}>
+                        Open demo<span className="sr-only">: {p.title}</span> <span aria-hidden="true">↘</span>
+                      </a>
+                      <a className="mission__src hud" href={p.url} target="_blank" rel="noopener noreferrer">
+                        Source<span className="sr-only">: {p.title} on GitHub (opens in a new tab)</span> <span aria-hidden="true">↗</span>
+                      </a>
+                    </span>
                   </div>
                 </article>
               </li>

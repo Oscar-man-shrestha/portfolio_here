@@ -15,7 +15,8 @@ function useClock(timeZone: string) {
   return t;
 }
 
-export default function Header() {
+/** `base` is "" on the home page and "/" on project pages, so section links still land on the home page. */
+export default function Header({ base = "" }: { base?: string }) {
   const time = useClock(person.timeZone);
   const [open, setOpen] = useState(false);
   const [calm, setCalm] = useState(false); // "Motion off": no smooth scroll, glitches or loops
@@ -46,8 +47,10 @@ export default function Header() {
   return (
     <>
       <header className="hdr" id="header">
-        <a className="hdr__brand" href="#top" aria-label={`${person.name}, back to top`}>
-          <span className="hdr__mark" aria-hidden="true"><span>Oscar</span><span>Man Shrestha</span></span>
+        <a className="hdr__brand" href={base ? "/" : "#top"}>
+          {/* the space between the spans is ignored by the flex layout but keeps the accessible name readable */}
+          <span className="hdr__mark"><span>Oscar</span> <span>Man Shrestha</span></span>
+          <span className="sr-only">{base ? ", home" : ", back to top"}</span>
         </a>
         <div className="hdr__crumbs hud" aria-hidden="true">
           {person.disciplines.map((d) => <span key={d}><i>▸</i> {d}</span>)}
@@ -59,7 +62,7 @@ export default function Header() {
         </button>
         <nav className="hdr__nav hud" aria-label="Primary">
           {nav.map((n, i) => (
-            <a key={n.id} href={`#${n.id}`} data-nav={n.id}>
+            <a key={n.id} href={`${base}#${n.id}`} data-nav={n.id}>
               {n.label}<sup>{String(i + 1).padStart(2, "0")}</sup>
             </a>
           ))}
@@ -75,7 +78,7 @@ export default function Header() {
         <ol>
           {nav.map((n, i) => (
             <li key={n.id}>
-              <a href={`#${n.id}`} onClick={() => setOpen(false)}>
+              <a href={`${base}#${n.id}`} onClick={() => setOpen(false)}>
                 <small>{String(i + 1).padStart(2, "0")}</small>{n.label}
               </a>
             </li>

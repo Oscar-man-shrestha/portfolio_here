@@ -33,9 +33,9 @@ export const links: ProfileLink[] = [
   {
     label: "GitHub",
     url: "https://github.com/Oscar-man-shrestha",
-    status: "from-readme",
+    status: "confirmed",
     key: "G",
-    note: "Taken from the repository READMEs; not yet confirmed by Oscar as his public profile URL.",
+    note: "Confirmed 8 Nov 2026: Oscar's GitHub CLI is signed in to this account and he pushed this site to it.",
   },
   { label: "Instagram", url: "https://www.instagram.com/oscar_man_shrestha/", status: "confirmed", key: "I" },
   { label: "Threads", url: "https://www.threads.com/@oscar_man_shrestha", status: "confirmed", key: "T" },
@@ -57,6 +57,16 @@ export interface Project {
   stats?: Stat[];
   /** Which line-art diagram represents the project (drawn in code, not a fake screenshot). */
   visual: "relay" | "markov" | "beacon" | "gauge";
+  /** Facts for the project's demo page, taken from the repository README (8 Nov 2026). */
+  page: {
+    tagline: string;
+    problem: string;
+    how: string[];
+    facts: { k: string; v: string }[];
+    stack: string[];
+    extraLinks?: { label: string; url: string }[];
+    caveat?: string;
+  };
 }
 
 export const projects: Project[] = [
@@ -73,6 +83,30 @@ export const projects: Project[] = [
       { value: "357", label: "automated tests" },
     ],
     visual: "relay",
+    page: {
+      tagline: "Your AI ran out mid-project? Keep going in another one, with nothing lost.",
+      problem:
+        "Free AI chats run out in the middle of the work, and long chats quietly get worse. Starting over in another AI means copying the conversation by hand, and something always gets lost: the first messages, the decisions, what you already turned down, the exact file names.",
+      how: [
+        "Chat as usual on any of the six AIs. A Baton button sits next to the chat box, with a bar showing how much you have left.",
+        "Click the Baton button (or press Ctrl/Cmd+Shift+U) and pick the next AI. Baton suggests the best one for the task.",
+        "Read the draft and press Send. The new AI opens with the whole project typed in and your files attached. Baton never sends anything for you.",
+        "Baton checks the first reply. If the new AI ignored a rule, brought back something you rejected or changed a settled number, one click puts a correction in the chat box.",
+      ],
+      facts: [
+        { k: "Works with", v: "ChatGPT, Claude, Gemini, DeepSeek, Grok, Perplexity" },
+        { k: "Must-keep facts that reach the next AI", v: "100% (offline benchmark, 6 chats; v1.0: 80%)" },
+        { k: "Real replies that continued the work", v: "12 / 12" },
+        { k: "Real slips caught by the reply check", v: "1 of 1, no false alarms" },
+        { k: "Automated tests", v: "357 passing" },
+        { k: "Privacy", v: "Chats stay in the browser. No account, no analytics, no server in between." },
+      ],
+      stack: ["TypeScript", "Chrome Manifest V3", "WXT", "ONNX Runtime (on-device ranking)"],
+      extraLinks: [
+        { label: "Add to Chrome", url: "https://chromewebstore.google.com/detail/baton-pass/geklhdkeioejfjlpkgjcgmnhbifabknb" },
+        { label: "Project website", url: "https://oscar-man-shrestha.github.io/Baton/" },
+      ],
+    },
   },
   {
     id: "malware",
@@ -81,22 +115,80 @@ export const projects: Project[] = [
     url: "https://github.com/Oscar-man-shrestha/malware_fingerprint",
     tags: ["Machine learning", "Security"],
     visual: "markov",
+    page: {
+      tagline: "A probability-first malware classifier with explainable maths and confidence intervals.",
+      problem:
+        "Neural malware classifiers often report accuracy without uncertainty bounds. This engine models Windows API call sequences as Markov chains and classifies families in a three-dimensional metric space with closed-form statistical checks.",
+      how: [
+        "Abstract each API trace at three levels: behaviour categories (file, registry, network, process, memory, crypto…), subcategories, and raw API names.",
+        "Build five transition matrices per trace (first-order on each level, second-order on the first two) and combine them into one hybrid fingerprint with density-based softmax weights.",
+        "Compare the fingerprint with each family reference on three features: Jensen-Shannon divergence, entropy-rate gap and stationary-distribution distance.",
+        "Classify by nearest family in that 3D space, with Hoeffding confidence intervals and McNemar tests against single-order baselines.",
+      ],
+      facts: [
+        { k: "Fingerprint", v: "Φ_hybrid = w1·P_L1 + w2·P_L2 + w3·P_L3 + w4·P_L1² + w5·P_L2² (row-renormalised)" },
+        { k: "Feature space", v: "JS divergence · entropy-rate gap · stationary L1 distance" },
+        { k: "Family references", v: "Built by count pooling (maximum-likelihood), not by averaging matrices" },
+        { k: "Status", v: "Current results are simulation-study findings on synthetic traces; real-data result pending" },
+      ],
+      stack: ["Python", "NumPy", "SciPy"],
+      caveat: "The repository reports simulation-study findings only; no real-data accuracy is claimed here.",
+    },
   },
   {
     id: "raksha",
     title: "RAKSHA",
-    description: "An IoT safety node.",
+    description: "A bench safety node for informal workshops: heat index, process-air risk, fall detection and an exposure record.",
     url: "https://github.com/Oscar-man-shrestha/RAKSHA",
-    tags: ["IoT", "Embedded"],
+    tags: ["IoT", "ESP32", "Safety"],
     visual: "beacon",
+    page: {
+      tagline: "A bench safety node for informal workshops, built for SDG 8.",
+      problem:
+        "People in brick kilns, tailoring units, welding shops and small construction sites work in heat, dust and fumes with no instrument on the bench. A bad hour is invisible until someone is already hurt, and employers have no record of how long a named worker was in those conditions.",
+      how: [
+        "A worker signs onto the shift with an RFID card; a second tap acknowledges an alarm.",
+        "A Rothfusz heat index from the DHT22 is placed on a five-step band: below 27 °C, caution, extreme caution, danger, extreme.",
+        "Exposure seconds count only while PIR or IR sees a person, so an empty bench adds no hours.",
+        "A fall is free-fall, then impact, then a still posture, so shaking the bench never triggers it. Fan and beacon relays react; a CSV record and a local dashboard keep working without the workshop router.",
+      ],
+      facts: [
+        { k: "Controller", v: "ESP32 DevKit V1, Arduino C++" },
+        { k: "Sensors", v: "DHT22, NTC, MPU6050, PIR + IR, KY-037 sound, RC522 RFID" },
+        { k: "Worker interface", v: "SSD1306 OLED, RGB LED, vibration motor" },
+        { k: "Record", v: "LittleFS /shift.csv every 15 s and on every edge" },
+        { k: "Network", v: "Station for 10 s, then its own access point at 192.168.4.1" },
+        { k: "Process air", v: "A risk score from noise, humidity and heat. The kit has no gas sensor; the score is not a ppm reading." },
+      ],
+      stack: ["ESP32", "Arduino C++", "LittleFS", "HTML dashboard", "Logicraft simulation"],
+    },
   },
   {
     id: "eval",
     title: "Eval Validity",
-    description: "A study of the metrics used to evaluate EdTech.",
+    description: "Research on whether next-item metrics in educational logs measure learning or just repetition.",
     url: "https://github.com/Oscar-man-shrestha/eval-validity-edu",
     tags: ["Research", "Data"],
     visual: "gauge",
+    page: {
+      tagline: "Do next-item scores in educational logs measure learning, or just reward repetition?",
+      problem:
+        "EdTech models are often judged by how well they predict the next item a learner touches. If repetition and curriculum order alone score well, a high number may say little about learning.",
+      how: [
+        "Compare simple recency and Markov baselines with local GRU sequence probes.",
+        "Re-run the comparison with an action represented as a question, topic, skill or knowledge-component cluster, and see how conclusions change.",
+        "Freeze the protocol and input hashes in a preregistration before any confirmatory test.",
+        "Audit findings, effect thresholds and non-claims in a research integrity report.",
+      ],
+      facts: [
+        { k: "Datasets", v: "Junyi, ASSISTments 2009, XES3G5M" },
+        { k: "Preregistration", v: "Protocol frozen in the prereg-v1 release; OSF submission recorded 7 Oct 2026" },
+        { k: "Status", v: "Confirmatory holdout not yet run; exploratory rankings are not presented as results" },
+        { k: "Contribution", v: "An evaluation protocol and its audit, not a state-of-the-art recommender" },
+      ],
+      stack: ["Python", "PyTorch (GRU probes)", "pytest", "GitHub Actions"],
+      caveat: "The confirmatory test has not been run, so no result is claimed here.",
+    },
   },
 ];
 

@@ -18,6 +18,8 @@ export default function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="heroTitle">
       <div className="hero__glow" aria-hidden="true" />
+      {/* the red sun of the Soka reference, behind the name and the portrait */}
+      <div className="hero__sun" aria-hidden="true" />
 
       <h1 className="hero__title" id="heroTitle" tabIndex={-1}>
         <span className="sr-only">{person.name}</span>
@@ -32,8 +34,9 @@ export default function Hero() {
       <div className="hero__portrait" id="heroPortrait">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={images.hero.src} alt={images.hero.alt} width={images.hero.w} height={images.hero.h} decoding="async" fetchPriority="low" draggable={false} />
-        <HeroGLMount />
       </div>
+      {/* WebGL covers the whole hero so the portrait's particles can leave its frame while scrolling */}
+      <div className="hero__gl" aria-hidden="true"><HeroGLMount /></div>
 
       <p className="hero__outline" aria-hidden="true"><span className="hero__word"><Oscar /></span></p>
 

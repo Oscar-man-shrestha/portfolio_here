@@ -172,6 +172,25 @@ function run(): Dispose {
 
   // ---------------- entering the site ----------------
   let lenis: Lenis | null = null;
+  // The hero pin exists from the start (so the layout never jumps); its letter/panel timeline is created only once
+  // the boot sequence has finished, so GSAP records the settled values rather than mid-animation ones.
+  let heroPin: ScrollTrigger | null = null;
+  let bootDone = false, heroDomPending = false;
+  const heroScrollReady = () => { if (bootDone) heroDomScroll(); else heroDomPending = true; };
+  const markBootDone = () => { bootDone = true; if (heroDomPending) { heroDomPending = false; heroDomScroll(); } };
+  function heroDomScroll() {
+    if (reduce || !heroPin) return;
+    const pinST = heroPin;
+    const heroChars = $$(".hero__first .char"), outlineChars = $$(".hero__outline .char");
+    gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { start: () => pinST.start, end: () => pinST.end, scrub: 0.9 } })
+      .to(".hero__sun", { scale: 2.4, opacity: 0, duration: 1, ease: "power1.in" }, 0)
+      .to(heroChars, { yPercent: (k: number) => (k % 2 ? -60 : 70), rotationX: (k: number) => (k % 2 ? 65 : -65), opacity: 0, stagger: 0.04, duration: 0.6 }, 0.05)
+      .to(outlineChars, { yPercent: (k: number) => (k % 2 ? 90 : -90), opacity: 0, stagger: 0.04, duration: 0.6 }, 0.05)
+      .to(".hero__last, .hero__role, .hero__ctas", { y: -40, opacity: 0, duration: 0.35 }, 0.1)
+      .to(".hero .panel", { opacity: 0, x: (k: number) => (k % 2 ? 30 : -30), duration: 0.4, stagger: 0.03 }, 0.15)
+      .to(".hero__lines, .hero__bar", { opacity: 0, duration: 0.5 }, 0.2);
+    ScrollTrigger.refresh();
+  }
 
   function enterSite(animated: boolean, quick: boolean) {
     root.classList.remove("is-loading");
@@ -218,10 +237,11 @@ function run(): Dispose {
     if (!animated) {
       fx.hero.reveal = 1; fx.hero.glitch = 0;
       useSite.getState().set({ phase: "site" });
+      markBootDone();
       return;
     }
     const s = quick ? 0.7 : 1;
-    const tl = gsap.timeline({ delay: quick ? 0.05 : 0.12, onComplete: () => { useSite.getState().set({ phase: "site" }); idleGlitch(); } });
+    const tl = gsap.timeline({ delay: quick ? 0.05 : 0.12, onComplete: () => { useSite.getState().set({ phase: "site" }); idleGlitch(); markBootDone(); } });
     tl.from(".hero__lines .v", { scaleY: 0, duration: 1.1 * s, ease: "expo.inOut", stagger: 0.08 }, 0)
       .from(".hero__lines .h", { scaleX: 0, duration: 1.2 * s, ease: "expo.inOut", stagger: 0.07 }, 0.1 * s)
       .from(".hero__lines .tick", { scale: 0, rotate: 135, duration: 0.6, ease: "back.out(2)", stagger: 0.05 }, 0.7 * s)
@@ -298,12 +318,13 @@ function run(): Dispose {
     if (ticker && !reduce) ambient.push(gsap.to(ticker, { xPercent: -50, duration: 38, ease: "none", repeat: -1 }));
 
     if (!reduce) {
-      // hero scroll-out: the portrait sinks slower than the page, the name drifts apart
-      gsap.timeline({ scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } })
-        .to("#heroPortrait", { yPercent: 12, ease: "none" }, 0)
-        .to(".hero__first .hero__word", { xPercent: -6, opacity: 0.4, ease: "none" }, 0)
-        .to(".hero__outline .hero__word", { xPercent: 6, ease: "none" }, 0)
-        .to(".hero__lines", { opacity: 0, ease: "none" }, 0);
+      // hero, pinned for one extra screen: the photo hands over to particles that lift into 3D, turn and drift
+      // away; the name splits in depth, the red sun swells and the HUD powers down.
+      heroPin = ScrollTrigger.create({
+        trigger: ".hero", start: "top top", end: "+=110%", pin: true, anticipatePin: 1,
+        onUpdate: (s) => gsap.to(fx.hero, { scatter: s.progress, duration: 0.7, ease: "power2.out", overwrite: "auto" }),
+      });
+      heroScrollReady();
       ScrollTrigger.create({
         trigger: ".hero", start: "top top", end: "bottom top",
         onUpdate: (st) => { fx.hero.scroll = Math.max(fx.hero.scroll, Math.min(0.4, Math.abs(st.getVelocity()) / 9000)); },
@@ -487,14 +508,32 @@ function run(): Dispose {
   }
 
   function setupProfile() {
-    const turn = $("#turn");
-    if (!reduce) {
-      gsap.fromTo(".profile__track", { xPercent: 9 }, { xPercent: -9, ease: "none", scrollTrigger: { trigger: ".profile__stage", start: "top bottom", end: "bottom top", scrub: true } });
-      if (turn) ScrollTrigger.create({
-        trigger: turn, start: "top 55%", once: true,
-        onEnter: () => [0, 1, 2, 3].forEach((k) => later(() => turn.dispatchEvent(new Event("oms:spin")), 260 + k * 520)),
-      });
-    }
+    const pin = $(".op__pin");
+    if (!pin) return;
+    // one screen of scroll per view change: 4 views → +300%
+    let view = 0;
+    const st = ScrollTrigger.create({
+      trigger: pin, start: "top top", end: "+=300%", pin: true, scrub: reduce ? true : 0.6, anticipatePin: 1,
+      onUpdate: (s) => {
+        fx.profile.p = s.progress * 3;
+        const v = Math.max(0, Math.min(3, Math.floor(fx.profile.p + 0.5)));
+        if (v !== view) { view = v; window.dispatchEvent(new CustomEvent("oms:view", { detail: v })); }
+      },
+    });
+    // buttons and keyboard: jump to the scroll position that shows a given view
+    listen(window, "oms:goto-view", (ev) => {
+      const k = (ev as CustomEvent<number>).detail;
+      const y = st.start + (k / 3) * (st.end - st.start);
+      if (lenis && !reduce) lenis.scrollTo(y, { duration: 1.2 }); else window.scrollTo(0, y);
+    });
+    if (reduce) return;
+    // the stacked name drifts apart in depth while the figure turns
+    gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: pin, start: "top top", end: "+=300%", scrub: 0.6 } })
+      .fromTo(".op__line.l0", { xPercent: 6 }, { xPercent: -10 }, 0)
+      .fromTo(".op__line.l1", { xPercent: -8 }, { xPercent: 8 }, 0)
+      .fromTo(".op__line.l2", { xPercent: 4 }, { xPercent: -6 }, 0)
+      .fromTo(".op__sun", { scale: 0.85 }, { scale: 1.15 }, 0);
+    gsap.from(".op__line > span", { yPercent: 105, duration: 1.2, ease: "expo.out", stagger: 0.1, scrollTrigger: { trigger: pin, start: "top 70%", once: true } });
   }
 
   function setupContact() {
