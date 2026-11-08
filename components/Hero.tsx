@@ -31,11 +31,12 @@ export default function Hero() {
 
       {/* Plain <img> on purpose: the files are already optimised WebP, and on a cold server the image optimiser's
           on-demand encodes competed with the intro film for connections. */}
-      <div className="hero__portrait" id="heroPortrait">
+      {/* frame 0 of the head turn (the photo itself); WebGL takes over from it and scrubs the turn with scroll */}
+      <div className="hero__portrait" id="heroPortrait" style={{ aspectRatio: `${images.hero.w} / ${images.hero.h}` }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={images.hero.src} alt={images.hero.alt} width={images.hero.w} height={images.hero.h} decoding="async" fetchPriority="low" draggable={false} />
       </div>
-      {/* WebGL covers the whole hero so the portrait's particles can leave its frame while scrolling */}
+      {/* WebGL covers the whole hero so the petals can fall across all of it */}
       <div className="hero__gl" aria-hidden="true"><HeroGLMount /></div>
       {/* Oscar Man Shrestha in katakana, as vertical neon signage */}
       <p className="hero__kana" aria-hidden="true" lang="ja">オスカー・マン・シュレスタ</p>

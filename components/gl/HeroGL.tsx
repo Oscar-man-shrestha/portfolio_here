@@ -1,10 +1,15 @@
 "use client";
 
 // Hero portrait in WebGL, covering the whole hero.
-// The cut-out photo is laid on a relief mesh: flat in the middle, rounded at the silhouette (the depth comes from
-// the cut-out's own outline, not invented from the face). At rest the projection is exact, so the photo shows
-// untouched. Scrolling turns the relief in 3D (about 35°) with neon rim light sweeping its edges; the pointer adds a
-// small tilt. Sakura petals fall behind and in front. Boot keeps the scan-line reveal and short glitches.
+// The portrait is a short performance from a Google Flow clip animated from Oscar's real photo (frame 0 is that
+// photo), each frame cut out locally with macOS Vision. One timeline, three drivers:
+//   - entrance: once the HUD has booted, he pushes his sunglasses up (played at the clip's own speed);
+//   - hover (mouse only): he smiles, and the smile fades when the pointer leaves;
+//   - scroll: the smile, then the head turn, scrubbed with the hero's pinned scroll.
+// Frames are spaced by measured motion (dense where he moves fast) and neighbours are crossfaded. A neon rim
+// follows the outline of whichever frame is showing. At rest the pointer gives the photo a small 3D tilt on a relief
+// mesh whose depth comes from the cut-out's own outline (no invented facial geometry). Sakura petals fall behind and
+// in front. Boot keeps the scan-line reveal and short glitches.
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -12,6 +17,9 @@ import { images } from "@/lib/content";
 import { fx } from "@/lib/fx";
 import { useSite } from "@/lib/store";
 import Petals from "./Petals";
+
+const SEQ = images.headTurn;
+const POOL = 10; // GPU textures kept for recently shown frames, plus the one being loaded ahead
 
 const FADE = /* glsl */ `
 float bottomFade(float y) { return smoothstep(0.0, 0.12, y); }
@@ -40,12 +48,15 @@ void main() {
 `;
 
 const reliefFrag = /* glsl */ `
-uniform sampler2D uTex, uDepth;
-uniform float uTime, uReveal, uGlitch, uHover, uTurn, uYaw, uPitch;
-uniform vec2 uMouse, uRes, uTexel;
+uniform sampler2D uTexA, uTexB;
+uniform float uMix, uTime, uReveal, uGlitch, uHover, uTurn, uLit;
+uniform vec2 uMouse, uRes, uRim;
 varying vec2 vUv;
 float h1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// the showing frame: two neighbouring frames of the clip, crossfaded
+vec4 F(vec2 p) { return mix(texture2D(uTexA, p), texture2D(uTexB, p), uMix); }
+float FA(vec2 p) { return mix(texture2D(uTexA, p).a, texture2D(uTexB, p).a, uMix); }
 ${FADE}
 void main() {
   vec2 uv = vUv;
@@ -60,30 +71,26 @@ void main() {
   shift += (h1(block + 1.7) - 0.5) * 0.26 * step(1.0 - g * 0.32, h1(block * 1.31));
   shift *= g;
   shift += (h1(floor(uv.y * 90.0) + frame) - 0.5) * 0.035 * nearEdge;
-  float hb = (1.0 - smoothstep(0.0, 0.035, abs(uv.y - (uMouse.y * 0.5 + 0.5)))) * uHover * (1.0 - uTurn);
-  shift += hb * 0.012 * sin(t * 40.0 + uv.y * 300.0);
-  float split = 0.012 * g + 0.018 * nearEdge + 0.006 * hb;
+  // (no glitch band under the pointer any more: hovering makes him smile, and his face stays clean)
+  float split = 0.012 * g + 0.018 * nearEdge;
   vec2 p = uv + vec2(shift, 0.0);
-  vec4 cR = texture2D(uTex, p + vec2(split, 0.0));
-  vec4 cG = texture2D(uTex, p);
-  vec4 cB = texture2D(uTex, p - vec2(split, 0.0));
+  vec4 cR = F(p + vec2(split, 0.0));
+  vec4 cG = F(p);
+  vec4 cB = F(p - vec2(split, 0.0));
   vec3 col = vec3(cR.r, cG.g, cB.b);
   float a = max(cG.a, max(cR.a, cB.a));
   col += (vec3(0.06, 0.05, -0.04) * (cR.a - cG.a) + vec3(0.04, -0.03, 0.07) * (cB.a - cG.a)) * (g + nearEdge);
   col *= 1.0 - (0.07 * (g + nearEdge)) * step(0.5, fract(uv.y * uRes.y * 0.25));
 
-  // relief normal from the depth field, turned with the mesh; rims only where the surface curves
-  float hx = texture2D(uDepth, uv + vec2(uTexel.x, 0.0)).r - texture2D(uDepth, uv - vec2(uTexel.x, 0.0)).r;
-  float hy = texture2D(uDepth, uv + vec2(0.0, uTexel.y)).r - texture2D(uDepth, uv - vec2(0.0, uTexel.y)).r;
-  vec3 n = normalize(vec3(-hx * 3.0, -hy * 3.0, 1.0));
-  float cy = cos(uYaw), sy = sin(uYaw);
-  n = vec3(n.x * cy + n.z * sy, n.y, -n.x * sy + n.z * cy);
-  float curve = 1.0 - n.z;
-  float rimPink = pow(clamp(-n.x, 0.0, 1.0), 1.5) * curve;
-  float rimCyan = pow(clamp(n.x, 0.0, 1.0), 1.5) * curve;
+  // neon rim from the showing frame's own outline: pink on left-facing edges, cyan on right-facing, a little on top
+  vec2 gr = vec2(FA(p + vec2(uRim.x, 0.0)) - FA(p - vec2(uRim.x, 0.0)), FA(p + vec2(0.0, uRim.y)) - FA(p - vec2(0.0, uRim.y)));
+  float gm = length(gr);
+  vec2 n = -gr / max(gm, 1e-4);
+  float e = smoothstep(0.04, 0.8, gm);
+  float rimPink = e * (pow(clamp(-n.x, 0.0, 1.0), 1.3) + clamp(n.y, 0.0, 1.0) * 0.35);
+  float rimCyan = e * pow(clamp(n.x, 0.0, 1.0), 1.3);
   float sweep = exp(-pow((uv.x + uv.y * 0.35 - mix(-0.3, 1.4, uTurn)) * 7.0, 2.0)) * smoothstep(0.02, 0.2, uTurn) * (1.0 - smoothstep(0.85, 1.0, uTurn));
-  float lit = clamp(uTurn * 2.0 + abs(uMouse.x) * 0.25, 0.0, 1.0);
-  col += (vec3(1.0, 0.25, 0.5) * rimPink * 2.2 + vec3(0.2, 0.85, 1.0) * rimCyan * 1.6) * cG.a * lit;
+  col += (vec3(1.0, 0.25, 0.5) * rimPink * 1.7 + vec3(0.2, 0.85, 1.0) * rimCyan * 1.25) * cG.a * uLit;
   col += vec3(1.0, 0.45, 0.65) * sweep * 0.22 * cG.a;
 
   float vis = step(d, 0.0);
@@ -132,7 +139,54 @@ function depthFromAlpha(img: HTMLImageElement) {
   for (let y = 0; y < H; y++) flipped.set(data.subarray(y * W * 4, (y + 1) * W * 4), (H - 1 - y) * W * 4);
   const tex = new THREE.DataTexture(flipped, W, H, THREE.RGBAFormat);
   tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-  return { tex, W, H };
+  return tex;
+}
+
+/**
+ * A plain <img> as a texture, flipped and premultiplied by WebGL's own unpack settings (identical in every browser).
+ * No mipmaps: frames change many times a second, and the frame set is already chosen to match the portrait's size
+ * on screen, so a plain upload is enough and keeps every frame change cheap.
+ */
+function frameTexture(img: HTMLImageElement) {
+  const t = new THREE.Texture(img);
+  t.flipY = true;
+  t.premultiplyAlpha = true;
+  t.colorSpace = THREE.NoColorSpace;
+  t.generateMipmaps = false;
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+type Slot = { tex: THREE.Texture; frame: number; stamp: number };
+type Seq = {
+  tex0: THREE.Texture | null; // frame 0, the photo itself (also the page's <img>)
+  imgs: (HTMLImageElement | null)[];
+  pool: Slot[];
+  requested: boolean;
+  ready: boolean;
+  f: number; // the clip frame being shown (fractional: neighbours crossfade)
+  entered: boolean; // the entrance has started
+  wait: number; // seconds since the HUD finished booting
+  lastT: number; // last scroll target, to tell when scrolling has settled
+  still: number; // seconds the scroll target has been still
+  stamp: number;
+};
+
+const SRC = SEQ.frames; // clip frame number of each picked frame
+const REST = SEQ.marks.rest ?? 0; // after the entrance: sunglasses pushed up, hand down
+const SMILE = SEQ.marks.smile ?? REST; // full smile, just before the head turn
+const POS_REST = SEQ.pos[Math.max(0, SRC.indexOf(REST))];
+
+/** Clip frame at a motion position (0…1 along the whole clip), so scrolling moves him at an even pace. */
+function frameAtMotion(m: number) {
+  const P = SEQ.pos;
+  let k = 0;
+  while (k < P.length - 2 && P[k + 1] < m) k++;
+  const span = P[k + 1] - P[k];
+  const t = span > 0 ? THREE.MathUtils.clamp((m - P[k]) / span, 0, 1) : 1;
+  return SRC[k] + t * (SRC[k + 1] - SRC[k]);
 }
 
 function Portrait() {
@@ -144,9 +198,12 @@ function Portrait() {
         vertexShader: reliefVert,
         fragmentShader: reliefFrag,
         uniforms: {
-          uTex: { value: null }, uDepth: { value: null }, uBox: { value: box }, uAspect: { value: 1 }, uYaw: { value: 0 }, uPitch: { value: 0 },
-          uDepthAmt: { value: 0.16 }, uZoom: { value: 1 }, uTurn: { value: 0 }, uTime: { value: 0 }, uReveal: { value: 0 }, uGlitch: { value: 0 },
-          uHover: { value: 0 }, uMouse: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2(1, 1) }, uTexel: { value: new THREE.Vector2(1 / 256, 1 / 232) },
+          uTexA: { value: null }, uTexB: { value: null }, uMix: { value: 0 }, uDepth: { value: null }, uBox: { value: box },
+          uAspect: { value: 1 }, uYaw: { value: 0 }, uPitch: { value: 0 }, uDepthAmt: { value: 0.16 }, uZoom: { value: 1 },
+          uTurn: { value: 0 }, uLit: { value: 0 }, uTime: { value: 0 }, uReveal: { value: 0 }, uGlitch: { value: 0 },
+          uHover: { value: 0 }, uMouse: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2(1, 1) },
+          // rim width: about 7 pixels of the full-size frame, in texture units (same on the phone frames)
+          uRim: { value: new THREE.Vector2(7 / images.hero.w, 7 / images.hero.h) },
         },
         transparent: true, premultipliedAlpha: true, depthTest: false, depthWrite: false,
       }),
@@ -161,31 +218,27 @@ function Portrait() {
   }, [material, narrow]);
   useEffect(() => () => { material.dispose(); mesh.geometry.dispose(); }, [material, mesh]);
   const mouse = useRef(new THREE.Vector2());
+  const seq = useRef<Seq>({ tex0: null, imgs: [], pool: [], requested: false, ready: false, f: 0, entered: false, wait: 0, lastT: 0, still: 0, stamp: 0 });
+  const canHover = useMemo(() => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches, []);
 
+  // frame 0 first: the same file as the page's <img>, so the hand-over from HTML to WebGL is invisible
   useEffect(() => {
     let dead = false;
-    let tex: THREE.Texture | null = null, depth: THREE.Texture | null = null;
+    let depth: THREE.Texture | null = null;
+    const S = seq.current;
     (async () => {
       try {
-        // A plain <img>, flipped and premultiplied by WebGL's own unpack settings (identical in every browser).
         const img = new Image();
         img.decoding = "async";
         img.src = images.hero.src;
         await img.decode();
         if (dead) return;
-        tex = new THREE.Texture(img);
-        tex.flipY = true;
-        tex.premultiplyAlpha = true;
-        tex.colorSpace = THREE.NoColorSpace;
-        tex.minFilter = THREE.LinearMipmapLinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        tex.anisotropy = 4;
-        tex.needsUpdate = true;
-        const dm = depthFromAlpha(img);
-        depth = dm.tex;
-        material.uniforms.uTex.value = tex;
+        const tex = frameTexture(img);
+        S.tex0 = tex;
+        depth = depthFromAlpha(img);
+        material.uniforms.uTexA.value = tex;
+        material.uniforms.uTexB.value = tex;
         material.uniforms.uDepth.value = depth;
-        (material.uniforms.uTexel.value as THREE.Vector2).set(1 / dm.W, 1 / dm.H);
         fx.debug.heroTex = `${img.naturalWidth}x${img.naturalHeight}`;
         gl.initTexture(tex);
         invalidate();
@@ -199,8 +252,63 @@ function Portrait() {
         useSite.getState().set({ heroGL: "failed" });
       }
     })();
-    return () => { dead = true; tex?.dispose(); depth?.dispose(); };
+    return () => {
+      dead = true;
+      S.tex0?.dispose();
+      depth?.dispose();
+      S.pool.forEach((s) => s.tex.dispose());
+      Object.assign(S, { tex0: null, imgs: [], pool: [], requested: false, ready: false, f: 0, entered: false, wait: 0, lastT: 0, still: 0 });
+    };
   }, [gl, invalidate, material]);
+
+  /**
+   * The other frames load after the intro film, so they never compete with it. Phones, and screens where the portrait
+   * is drawn no taller than the small frames, get the small set (lighter to load, decode and upload).
+   */
+  const loadSeq = () => {
+    const S = seq.current;
+    S.requested = true;
+    const shown = (document.getElementById("heroPortrait")?.getBoundingClientRect().height ?? window.innerHeight) * Math.min(window.devicePixelRatio || 1, 2);
+    const phone = window.matchMedia("(max-width: 1023px)").matches || shown <= SEQ.mh * 1.15;
+    const dir = `${SEQ.dir}/${phone ? "m" : "d"}/`;
+    const imgs: (HTMLImageElement | null)[] = new Array(SEQ.count).fill(null);
+    S.imgs = imgs;
+    fx.debug.heroSeq.set = phone ? "m" : "d";
+    let left = SEQ.count - 1;
+    const done = () => {
+      if (--left > 0 || S.imgs !== imgs) return;
+      S.ready = imgs.every((im, i) => i === 0 || !!im);
+      fx.debug.heroSeq.ready = S.ready;
+    };
+    for (let i = 1; i < SEQ.count; i++) {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = `${dir}${String(i).padStart(2, "0")}.webp`;
+      img.decode().then(() => { imgs[i] = img; done(); }, done);
+    }
+  };
+
+  /** GPU texture for a frame: frame 0 stays resident; others share a small pool (least recently shown is reused). */
+  const texFor = (i: number): THREE.Texture | null => {
+    const S = seq.current;
+    if (i === 0) return S.tex0;
+    let slot = S.pool.find((s) => s.frame === i);
+    if (!slot) {
+      const img = S.imgs[i];
+      if (!img) return null;
+      if (S.pool.length < POOL) {
+        slot = { tex: frameTexture(img), frame: i, stamp: 0 };
+        S.pool.push(slot);
+      } else {
+        slot = S.pool.reduce((x, y) => (x.stamp <= y.stamp ? x : y));
+        slot.tex.image = img;
+        slot.tex.needsUpdate = true;
+        slot.frame = i;
+      }
+    }
+    slot.stamp = ++S.stamp;
+    return slot.tex;
+  };
 
   useEffect(() => {
     const el = document.querySelector(".hero");
@@ -219,16 +327,68 @@ function Portrait() {
       box.set(((p.left + p.width / 2 - hero.left) / hero.width) * 2 - 1, 1 - ((p.top + p.height / 2 - hero.top) / hero.height) * 2, p.width / hero.width, p.height / hero.height);
     }
     const u = material.uniforms;
+    const S = seq.current;
+    if (!S.requested && !fx.reduce && S.tex0 && useSite.getState().phase !== "intro") loadSeq();
     const turn = fx.reduce ? 0 : fx.hero.turn;
     const k = 1 - Math.exp(-dt * 5);
     const tx = fx.reduce ? 0 : fx.hero.mx, ty = fx.reduce ? 0 : fx.hero.my;
     mouse.current.x += (tx - mouse.current.x) * k;
     mouse.current.y += (ty - mouse.current.y) * k;
     const ease = turn * turn * (3 - 2 * turn);
+    // the pointer tilt belongs to the resting photo; it hands over to the real turn as soon as scrolling starts
+    const tilt = 1 - THREE.MathUtils.smoothstep(turn, 0, 0.12);
+
+    // the performance: one clip timeline driven by the entrance, hover and scroll
+    const prog = THREE.MathUtils.clamp((turn - 0.04) / 0.72, 0, 1); // the hero pin's progress, held at both ends
+    let target = 0, follow = false;
+    if (S.ready && !fx.reduce) {
+      if (!S.entered && useSite.getState().phase === "site") { S.wait += dt; S.entered = S.wait > 0.35; }
+      if (S.entered) {
+        const scrollT = prog > 0 ? frameAtMotion(POS_REST + prog * (1 - POS_REST)) : REST;
+        const hoverT = canHover && fx.hero.hover > 0.5 ? SMILE : REST;
+        target = Math.max(hoverT, scrollT);
+        follow = prog > 0.001 && scrollT >= hoverT && S.f >= REST - 0.5;
+      }
+    }
+    if (follow) {
+      // scrolling: crossfade while it moves; once it settles, rest on a real frame (never two faces blended)
+      S.still = Math.abs(target - S.lastT) < 0.02 ? S.still + dt : 0;
+      S.lastT = target;
+      if (S.still > 0.15) target = SRC.reduce((b, s) => (Math.abs(s - target) < Math.abs(b - target) ? s : b), SRC[0]);
+      S.f += (target - S.f) * (1 - Math.exp(-dt * 9));
+    } else {
+      // entrance and hover play at the clip's own speed (3× when a scroll is waiting for the entrance to finish)
+      const speed = SEQ.fps * (S.f < REST && prog > 0.05 ? 3 : 1);
+      S.f += THREE.MathUtils.clamp(target - S.f, -speed * dt, speed * dt);
+    }
+    if (Math.abs(target - S.f) < 0.01) S.f = target;
+    let i = 0;
+    while (i < SRC.length - 2 && SRC[i + 1] <= S.f) i++;
+    const mix = THREE.MathUtils.clamp((S.f - SRC[i]) / (SRC[i + 1] - SRC[i]), 0, 1);
+    const ta = texFor(i);
+    const tb = mix > 0.002 ? texFor(i + 1) : null;
+    if (ta) {
+      u.uTexA.value = ta;
+      u.uTexB.value = tb ?? ta;
+      u.uMix.value = tb ? mix : 0;
+    }
+    // load the next frame in the direction of travel onto the GPU now, so showing it later costs nothing
+    if (Math.abs(target - S.f) > 0.01) {
+      const ahead = target > S.f ? i + 2 : i - 1;
+      if (ahead > 0 && ahead < SRC.length) {
+        const t = texFor(ahead);
+        if (t) gl.initTexture(t);
+      }
+    }
+    fx.debug.heroSeq.i = i;
+    fx.debug.heroSeq.mix = tb ? mix : 0;
+    fx.debug.heroSeq.f = S.f;
+
     u.uTurn.value = turn;
-    u.uYaw.value = -0.62 * ease + mouse.current.x * 0.12 * (1 - ease);
-    u.uPitch.value = 0.1 * ease - mouse.current.y * 0.06 * (1 - ease);
-    u.uZoom.value = 1 + 0.05 * ease;
+    u.uLit.value = Math.min(1, turn * 2 + Math.abs(mouse.current.x) * 0.25 * tilt);
+    u.uYaw.value = mouse.current.x * 0.12 * tilt;
+    u.uPitch.value = -mouse.current.y * 0.06 * tilt;
+    u.uZoom.value = 1 + 0.04 * ease;
     u.uAspect.value = size.width / Math.max(1, size.height);
     u.uTime.value += dt;
     u.uReveal.value = fx.hero.reveal;

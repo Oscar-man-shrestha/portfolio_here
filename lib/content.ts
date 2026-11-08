@@ -2,6 +2,8 @@
 // Oscar's READMEs and the previous site, links from his own profiles. Decorative HUD labels in the
 // components never state facts about him.
 
+import headTurn from "./headturn.json";
+
 export type LinkStatus = "confirmed" | "from-readme" | "missing";
 
 export interface ProfileLink {
@@ -223,7 +225,15 @@ export const nav = [
 
 /** Oscar's own images (refs 1–5), cut out locally with macOS Vision. Pixels inside the subject are untouched. */
 export const images = {
-  hero: { src: "/img/hero-cutout.webp", w: 1024, h: 930, alt: "Oscar Man Shrestha in a black suit and sunglasses" },
+  /** Frame 0 of the hero clip: Oscar's real photo as the clip's first frame. */
+  hero: { src: `${headTurn.dir}/d/00.webp`, w: headTurn.w, h: headTurn.h, alt: "Oscar Man Shrestha in a black suit and sunglasses" },
+  /**
+   * The hero performance: a short Google Flow clip Oscar animated from his real photo (frame 0 is that photo), cut
+   * out frame by frame with macOS Vision (tools/headturn). `frames` are clip frame numbers, `pos` spaces them by
+   * measured motion, `marks` name the moments the site rests on. `dir` is named after the clip, so browsers that
+   * cached an earlier clip's frames (cached for a year) can never mix them in. `d` holds full-size frames, `m` phone ones.
+   */
+  headTurn,
   avatar: { src: "/img/avatar-pixel.webp", w: 480, h: 480, alt: "Pixel-art portrait of Oscar" },
   avatarAlt: { src: "/img/avatar-pixel-2.webp", w: 480, h: 480, alt: "Pixel-art portrait of Oscar in a track jacket" },
   full: { src: "/img/full-cutout.webp", w: 607, h: 1877, alt: "Oscar smiling, in a grey hoodie with headphones and a lanyard, holding a laptop" },
