@@ -89,19 +89,36 @@ function makeTokenizer(vocabText: string) {
   };
 }
 
+export type Runtime = { ort: typeof OrtModule; session: OrtModule.InferenceSession; vocabText: string };
+let runtime: Promise<Runtime> | null = null;
+const listeners = new Set<(fraction: number) => void>();
+
+/**
+ * ONNX Runtime, the model session and the vocabulary, loaded once per page and shared (OMS-mini and the Baton demo
+ * both use it). `onProgress` gets 0..1 for the model download.
+ */
+export function loadRuntime(onProgress?: (fraction: number) => void): Promise<Runtime> {
+  if (onProgress) listeners.add(onProgress);
+  runtime ??= (async () => {
+    // served as a static file and imported at run time, so the bundler leaves it alone
+    const ort = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ `${ORT_DIR}ort.wasm.min.mjs`)) as typeof OrtModule;
+    ort.env.wasm.wasmPaths = ORT_DIR;
+    ort.env.wasm.numThreads = 1; // threads need cross-origin isolation, which this site doesn't set
+    ort.env.wasm.proxy = true; // run the model in a web worker, so the page never stutters while it works
+    const [model, vocabText] = await Promise.all([
+      fetchBytes(`${MODEL_DIR}model.onnx`, (n) => listeners.forEach((l) => l(Math.min(1, n / MODEL_BYTES)))),
+      fetch(`${MODEL_DIR}vocab.txt`).then((r) => { if (!r.ok) throw new Error(`vocab: HTTP ${r.status}`); return r.text(); }),
+    ]);
+    // "basic" builds the session in under half a second; "all" took seven and ran no faster
+    const session = await ort.InferenceSession.create(model, { executionProviders: ["wasm"], graphOptimizationLevel: "basic" });
+    return { ort, session, vocabText };
+  })().catch((err) => { runtime = null; throw err; });
+  return runtime.finally(() => { if (onProgress) listeners.delete(onProgress); });
+}
+
 /** Loads ONNX Runtime, the model and the vocabulary. `onProgress` gets 0..1 for the model download. */
 export async function loadEmbedder(onProgress?: (fraction: number) => void): Promise<Embedder> {
-  // served as a static file and imported at run time, so the bundler leaves it alone
-  const ort = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ `${ORT_DIR}ort.wasm.min.mjs`)) as typeof OrtModule;
-  ort.env.wasm.wasmPaths = ORT_DIR;
-  ort.env.wasm.numThreads = 1; // threads need cross-origin isolation, which this site doesn't set
-  ort.env.wasm.proxy = true; // run the model in a web worker, so the page never stutters while it works
-  const [model, vocabText] = await Promise.all([
-    fetchBytes(`${MODEL_DIR}model.onnx`, (n) => onProgress?.(Math.min(1, n / MODEL_BYTES))),
-    fetch(`${MODEL_DIR}vocab.txt`).then((r) => { if (!r.ok) throw new Error(`vocab: HTTP ${r.status}`); return r.text(); }),
-  ]);
-  // "basic" builds the session in under half a second; "all" took seven and ran no faster
-  const session = await ort.InferenceSession.create(model, { executionProviders: ["wasm"], graphOptimizationLevel: "basic" });
+  const { ort, session, vocabText } = await loadRuntime(onProgress);
   const tok = makeTokenizer(vocabText);
   const inputs = new Set(session.inputNames);
   const outName = session.outputNames.includes("last_hidden_state") ? "last_hidden_state" : session.outputNames[0];

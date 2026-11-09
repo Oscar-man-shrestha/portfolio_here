@@ -1,6 +1,7 @@
 import { images, links, person } from "@/lib/content";
+import SpecSheet from "./SpecSheet";
 
-export default function Contact() {
+export default function Contact({ fetchedAt }: { fetchedAt: string }) {
   const shown = links.filter((l) => l.url);
   return (
     <section className="sec contact" id="contact" aria-labelledby="contactTitle">
@@ -29,8 +30,11 @@ export default function Contact() {
       <div className="contact__flood" aria-hidden="true" data-text="連絡" lang="ja" />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="contact__fig" src={images.full.src} alt="" width={images.full.w} height={images.full.h} loading="lazy" decoding="async" aria-hidden="true" />
+      <SpecSheet fetchedAt={fetchedAt} />
       <footer className="ftr hud">
         <span>© 2026 {person.name}</span>
+        {/* the way into the hidden puzzle (components/Ctf, and OMS-mini's /ctf) */}
+        <span className="ftr__ctf"><i aria-hidden="true">◈</i> A flag is hidden on this site. Ask OMS-mini for <b>/ctf</b>, or open the console.</span>
         <span style={{ display: "flex", gap: 22 }}>
           <button type="button" id="replayIntro">Replay intro</button>
           <a href="#top">Escape ↑</a>

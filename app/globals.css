@@ -740,7 +740,11 @@ html.reduce-motion .badge__ring svg, html.reduce-motion .panel--unit .scan { ani
   box-shadow: 0 0 140px rgba(255, 46, 76, 0.32); pointer-events: none;
 }
 .hero__sun::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: repeating-linear-gradient(0deg, rgba(9, 9, 10, 0.22) 0 2px, transparent 2px 7px); mask-image: linear-gradient(to bottom, transparent 55%, #000 100%); }
-@media (max-width: 1023px) { .hero__sun { width: 74vw; top: calc(var(--header-h) + var(--H) * 0.04); } }
+@media (max-width: 1023px) {
+  /* no bigger than the screen's height allows, and faded out before the coat, so it never shows through the
+     portrait's soft bottom edge (it did on tablets, as a striped red band across the chest) */
+  .hero__sun { width: min(74vw, calc(var(--H) * 0.6)); top: calc(var(--header-h) + var(--H) * 0.04); -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 86%); mask-image: linear-gradient(to bottom, #000 58%, transparent 86%); }
+}
 
 /* SECONDVISION-style echoes under section titles */
 .sec__title[data-echo] { position: relative; isolation: isolate; }
@@ -1283,8 +1287,8 @@ html.is-loading .guide, html.menu-open .guide { display: none; }
    v11: the 60-second tour (components/Tour, lib/tour). A spotlight frames the evidence; OMS-mini speaks from a card
    beside the figure in the corner. Under the guide's layer, so the figure stays on top.
    ========================================================================== */
-.hero__ctas { flex-wrap: wrap; align-items: center; }
 .hero__tour {
+  position: absolute; z-index: 5; right: calc(var(--rail-r) + 22px); bottom: calc(var(--bar-h) + 76px);
   display: inline-flex; align-items: center; gap: 8px; padding: 10px 6px; background: none; border: 0; cursor: pointer;
   color: var(--color-paper); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; transition: color 0.3s, opacity 0.3s;
 }
@@ -1340,7 +1344,6 @@ html.is-loading .guide, html.menu-open .guide { display: none; }
 .reduce-motion .tour__spot, .reduce-motion .tour__card { transition: none; animation: none; }
 .reduce-motion .guide__pet img, .reduce-motion .guide__pet canvas { animation: none !important; }
 @media (max-width: 767px) {
-  .hero__tour { flex-basis: 100%; justify-content: center; padding: 6px; }
   .tour__card { left: 12px; right: 76px; width: auto; bottom: calc(12px + env(safe-area-inset-bottom)); padding: 12px 13px; }
   .tour__card::after { bottom: 26px; }
   .tour__text { font-size: 14px; min-height: 0; }
@@ -1364,3 +1367,108 @@ html.is-loading .guide, html.menu-open .guide { display: none; }
 @keyframes vt-out { to { opacity: 0; transform: scale(0.985); } }
 @keyframes vt-in { from { opacity: 0; transform: translateY(18px); } }
 @media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+
+/* ==========================================================================
+   v13: the spec sheet (components/SpecSheet): real numbers about this visit, above the footer
+   ========================================================================== */
+.spec { position: relative; z-index: 1; margin-top: clamp(40px, 5vw, 72px); display: grid; grid-template-columns: var(--rail-l) 1fr; gap: 12px 22px; align-items: start; background: var(--color-ink); }
+.spec__k { margin: 0; padding-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.14em; color: var(--color-olive); }
+.spec__grid { margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+.spec__grid > div { padding: 14px 16px 16px 0; }
+.spec__grid > div + div { padding-left: 16px; border-left: 1px solid var(--line); }
+.spec__grid dt { font-size: 9.5px; letter-spacing: 0.14em; color: var(--color-olive); }
+.spec__grid dd { margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; font: 500 clamp(18px, 1.6vw, 24px)/1 var(--font-mono); letter-spacing: -0.01em; color: var(--color-paper); text-transform: none; }
+.spec__grid small { font: 400 10px/1.3 var(--font-mono); letter-spacing: 0.06em; color: rgba(236, 236, 230, 0.5); text-transform: none; }
+@media (max-width: 1023px) {
+  .spec { grid-template-columns: 1fr; }
+}
+@media (max-width: 767px) {
+  .spec__grid { grid-template-columns: 1fr 1fr; }
+  .spec__grid > div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .spec__grid > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+}
+
+/* v14: the hidden puzzle's "flag captured" panel (components/Ctf) */
+.ctf {
+  position: fixed; z-index: 720; left: var(--gutter); bottom: calc(var(--gutter) + env(safe-area-inset-bottom)); width: min(380px, calc(100vw - 2 * var(--gutter)));
+  padding: 16px 18px; background: var(--color-ink); color: var(--color-paper); border: 1px solid var(--color-signal);
+  box-shadow: 0 0 40px rgba(255, 46, 76, 0.3), 0 24px 60px rgba(0, 0, 0, 0.5); animation: tour-in 0.5s var(--ease-expo) both;
+}
+.ctf__k { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.14em; color: var(--color-signal); }
+.ctf__msg { margin: 10px 0 14px; font-size: 15px; line-height: 1.45; }
+.ctf__act { display: flex; align-items: center; gap: 12px; }
+.ctf__x { background: none; border: 0; color: rgba(236, 236, 230, 0.7); font-size: 10px; letter-spacing: 0.12em; cursor: pointer; }
+.ctf__x:hover { color: var(--color-signal); }
+
+/* ==========================================================================
+   v15: Contribution City time-travel (components/CityTime): scrubber, replay and the day panel
+   ========================================================================== */
+.activity__main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ctime__bar { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 1px solid var(--line); background: var(--color-ink-2); }
+.ctime__play, .ctime__go { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; background: none; border: 1px solid rgba(236, 236, 230, 0.24); color: var(--color-paper); font-size: 10px; letter-spacing: 0.12em; cursor: pointer; transition: border-color 0.25s, color 0.25s; }
+.ctime__play { color: var(--color-signal); border-color: var(--color-signal); }
+.ctime__play span { color: var(--color-paper); }
+.ctime__play:hover, .ctime__go:hover { border-color: var(--color-signal); color: var(--color-signal); }
+.ctime__range { flex: 1; min-width: 80px; height: 22px; margin: 0; accent-color: var(--color-signal); background: transparent; cursor: pointer; }
+.ctime__now { flex: none; margin: 0; font-size: 10px; letter-spacing: 0.1em; color: var(--color-olive); white-space: nowrap; }
+.ctime__now span { color: var(--color-paper); }
+.ctime__now b { margin-left: 6px; color: var(--color-signal); font-weight: 400; font-size: 13px; }
+.ctime__day { padding: 12px 14px 14px; border: 1px solid var(--color-signal); background: var(--color-ink); animation: tour-in 0.4s var(--ease-expo) both; }
+.ctime__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 10px; letter-spacing: 0.12em; color: var(--color-olive); }
+.ctime__head b { color: var(--color-signal); font-weight: 400; font-size: 14px; }
+.ctime__x { background: none; border: 0; color: var(--color-paper); font-size: 20px; line-height: 1; cursor: pointer; }
+.ctime__x:hover { color: var(--color-signal); }
+.ctime__list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px; }
+.ctime__list a { display: grid; grid-template-columns: minmax(70px, 120px) 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.35; color: rgba(236, 236, 230, 0.86); }
+.ctime__list a:hover { color: var(--color-signal); }
+.ctime__list .mono { font-size: 11px; color: var(--color-olive); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctime__msg { margin: 10px 0 0; font-size: 12px; line-height: 1.45; color: rgba(236, 236, 230, 0.6); }
+@media (max-width: 767px) {
+  .ctime__bar { flex-wrap: wrap; gap: 10px; }
+  .ctime__range { order: 3; flex-basis: 100%; }
+  .ctime__now { margin-left: auto; }
+  .ctime__list a { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ==========================================================================
+   v16: the live Baton demo (components/demos/BatonLive): Baton's own code on a chat
+   ========================================================================== */
+.blive__note { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.14em; color: var(--color-signal); }
+.blive__picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.blive__picks button { padding: 8px 12px; background: none; border: 1px solid rgba(236, 236, 230, 0.24); color: var(--color-paper); font: 500 12px/1 var(--font-mono); cursor: pointer; transition: border-color 0.25s, background 0.25s, color 0.25s; }
+.blive__picks button:hover { border-color: var(--color-signal); }
+.blive__picks button.is-on { background: var(--color-paper); border-color: var(--color-paper); color: var(--color-ink); }
+.blive__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.blive__chat { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.blive__turns { list-style: none; margin: 0; padding: 0 6px 0 0; max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.blive__turns li { padding: 10px 12px; border: 1px solid var(--line); background: rgba(236, 236, 230, 0.03); }
+.blive__turns li.is-user { border-color: rgba(255, 46, 76, 0.4); }
+.blive__turns .hud { font-size: 9.5px; letter-spacing: 0.14em; color: var(--color-olive); }
+.blive__turns p { margin: 6px 0 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: rgba(236, 236, 230, 0.86); }
+.blive__ta { width: 100%; min-height: 300px; padding: 12px; resize: vertical; background: rgba(236, 236, 230, 0.04); color: var(--color-paper); border: 1px solid var(--line-strong); font-size: 12.5px; line-height: 1.5; }
+.blive__run { align-self: flex-start; }
+.blive__run:disabled { opacity: 0.7; cursor: progress; }
+.blive__out { display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 14px 16px; border: 1px solid var(--line); background: rgba(9, 9, 10, 0.6); }
+.blive__k { margin: 0 0 8px; font-size: 9.5px; letter-spacing: 0.14em; color: var(--color-olive); }
+.blive__topic { margin: 0 0 10px; font-size: 22px; }
+.blive__topic b { color: var(--color-signal); font-weight: 760; }
+.blive__bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.blive__bars li { display: grid; grid-template-columns: 130px 1fr 40px; align-items: center; gap: 10px; font: 11px/1 var(--font-mono); color: rgba(236, 236, 230, 0.7); }
+.blive__bars i { height: 6px; background: var(--color-signal); transform-origin: 0 50%; transition: transform 0.6s var(--ease-expo); }
+.blive__bars em { font-style: normal; text-align: right; }
+.blive__list { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 13px; line-height: 1.5; color: rgba(236, 236, 230, 0.9); }
+.blive__list--dim { color: rgba(236, 236, 230, 0.65); }
+.blive__muted { margin: 0; font-size: 13px; line-height: 1.55; color: rgba(236, 236, 230, 0.6); }
+.blive__src { margin: 0; font-size: 10px; letter-spacing: 0.08em; color: var(--color-olive); }
+.blive__src a { color: var(--color-paper); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 900px) { .blive__grid { grid-template-columns: 1fr; } .blive__bars li { grid-template-columns: 110px 1fr 36px; } }
+
+/* the footer's hint at the hidden puzzle */
+.ftr__ctf { color: var(--color-olive); }
+.ftr__ctf i { font-style: normal; color: var(--color-signal); margin-right: 4px; }
+.ftr__ctf b { color: var(--color-paper); font-weight: 400; }
+
+/* phones and tablets centre the hero: the tour button sits centred above the tagline */
+@media (max-width: 1023px) { .hero__tour { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(var(--bar-h) + 116px); padding: 6px; white-space: nowrap; } }
+/* tablets: the tagline is one line, so the tour button sits closer to it, clear of the name */
+@media (min-width: 768px) and (max-width: 1023px) { .hero__tour { bottom: calc(var(--bar-h) + 98px); } }

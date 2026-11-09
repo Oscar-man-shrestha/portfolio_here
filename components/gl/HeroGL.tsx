@@ -20,6 +20,7 @@ import Petals from "./Petals";
 
 const SEQ = images.headTurn;
 const POOL = 10; // GPU textures kept for recently shown frames, plus the one being loaded ahead
+const BMP_KEEP = 24; // frames kept decoded for the GPU (ImageBitmaps), on top of the textures
 
 const FADE = /* glsl */ `
 float bottomFade(float y) { return smoothstep(0.0, 0.12, y); }
@@ -32,7 +33,7 @@ uniform float uAspect, uYaw, uPitch, uDepthAmt, uZoom;
 varying vec2 vUv;
 void main() {
   vUv = uv;
-  float h = texture2D(uDepth, uv).r;
+  float h = texture2D(uDepth, vec2(uv.x, 1.0 - uv.y)).r; // textures are stored top row first
   float bw = uBox.z * uAspect;
   vec3 p = vec3((uv.x * 2.0 - 1.0) * bw, (uv.y * 2.0 - 1.0) * uBox.w, h * uDepthAmt * uBox.w);
   float zRest = p.z;
@@ -55,8 +56,9 @@ varying vec2 vUv;
 float h1(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 // the showing frame: two neighbouring frames of the clip, crossfaded
-vec4 F(vec2 p) { return mix(texture2D(uTexA, p), texture2D(uTexB, p), uMix); }
-float FA(vec2 p) { return mix(texture2D(uTexA, p).a, texture2D(uTexB, p).a, uMix); }
+// frames are stored top row first (uploaded unflipped, the fast path), so v is flipped here
+vec4 F(vec2 p) { p.y = 1.0 - p.y; return mix(texture2D(uTexA, p), texture2D(uTexB, p), uMix); }
+float FA(vec2 p) { p.y = 1.0 - p.y; return mix(texture2D(uTexA, p).a, texture2D(uTexB, p).a, uMix); }
 ${FADE}
 void main() {
   vec2 uv = vUv;
@@ -134,28 +136,34 @@ function depthFromAlpha(img: HTMLImageElement) {
     data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = Math.round(v * 255);
     data[i * 4 + 3] = 255;
   }
-  // DataTexture rows start at the bottom; flip so uv.y matches the photo texture (which uses flipY)
-  const flipped = new Uint8Array(W * H * 4);
-  for (let y = 0; y < H; y++) flipped.set(data.subarray(y * W * 4, (y + 1) * W * 4), (H - 1 - y) * W * 4);
-  const tex = new THREE.DataTexture(flipped, W, H, THREE.RGBAFormat);
+  // rows stay top first, like the frames; the shader flips v when it samples
+  const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
   tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
   return tex;
 }
 
 /**
- * A plain <img> as a texture, flipped and premultiplied by WebGL's own unpack settings (identical in every browser).
+ * A frame as a texture. Preferably an ImageBitmap made off the main thread (uploading one costs ~5 ms on a slow
+ * phone, against ~90 ms for an <img>, which the browser decodes again on the main thread at upload). Never flipped on
+ * upload (WebGL ignores the flip setting for ImageBitmaps, and browsers differ on the bitmap's own option), so the
+ * shader flips v. Premultiplied: by the bitmap's own option, or by WebGL's unpack setting for an <img>.
  * No mipmaps: frames change many times a second, and the frame set is already chosen to match the portrait's size
  * on screen, so a plain upload is enough and keeps every frame change cheap.
  */
-function frameTexture(img: HTMLImageElement) {
-  const t = new THREE.Texture(img);
-  t.flipY = true;
-  t.premultiplyAlpha = true;
+function setFrame(t: THREE.Texture, src: HTMLImageElement | ImageBitmap) {
+  t.image = src;
+  t.flipY = false;
+  t.premultiplyAlpha = !(typeof ImageBitmap !== "undefined" && src instanceof ImageBitmap);
+  t.needsUpdate = true;
+}
+const BITMAP: ImageBitmapOptions = { premultiplyAlpha: "premultiply", colorSpaceConversion: "default" };
+function frameTexture(img: HTMLImageElement | ImageBitmap) {
+  const t = new THREE.Texture();
+  setFrame(t, img);
   t.colorSpace = THREE.NoColorSpace;
   t.generateMipmaps = false;
   t.minFilter = THREE.LinearFilter;
   t.magFilter = THREE.LinearFilter;
-  t.needsUpdate = true;
   return t;
 }
 
@@ -163,6 +171,8 @@ type Slot = { tex: THREE.Texture; frame: number; stamp: number };
 type Seq = {
   tex0: THREE.Texture | null; // frame 0, the photo itself (also the page's <img>)
   imgs: (HTMLImageElement | null)[];
+  bmps: Map<number, ImageBitmap>; // frames already decoded for the GPU, least recently used first
+  pend: Set<number>;
   pool: Slot[];
   requested: boolean;
   ready: boolean;
@@ -218,7 +228,7 @@ function Portrait() {
   }, [material, narrow]);
   useEffect(() => () => { material.dispose(); mesh.geometry.dispose(); }, [material, mesh]);
   const mouse = useRef(new THREE.Vector2());
-  const seq = useRef<Seq>({ tex0: null, imgs: [], pool: [], requested: false, ready: false, f: 0, entered: false, wait: 0, lastT: 0, still: 0, stamp: 0 });
+  const seq = useRef<Seq>({ tex0: null, imgs: [], bmps: new Map(), pend: new Set(), pool: [], requested: false, ready: false, f: 0, entered: false, wait: 0, lastT: 0, still: 0, stamp: 0 });
   const canHover = useMemo(() => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches, []);
 
   // frame 0 first: the same file as the page's <img>, so the hand-over from HTML to WebGL is invisible
@@ -233,7 +243,9 @@ function Portrait() {
         img.src = images.hero.src;
         await img.decode();
         if (dead) return;
-        const tex = frameTexture(img);
+        const bmp = typeof createImageBitmap === "function" ? await createImageBitmap(img, BITMAP).catch(() => null) : null;
+        if (dead) { bmp?.close(); return; }
+        const tex = frameTexture(bmp ?? img);
         S.tex0 = tex;
         depth = depthFromAlpha(img);
         material.uniforms.uTexA.value = tex;
@@ -257,7 +269,8 @@ function Portrait() {
       S.tex0?.dispose();
       depth?.dispose();
       S.pool.forEach((s) => s.tex.dispose());
-      Object.assign(S, { tex0: null, imgs: [], pool: [], requested: false, ready: false, f: 0, entered: false, wait: 0, lastT: 0, still: 0 });
+      S.bmps.forEach((b) => b.close());
+      Object.assign(S, { tex0: null, imgs: [], bmps: new Map(), pend: new Set(), pool: [], requested: false, ready: false, f: 0, entered: false, wait: 0, lastT: 0, still: 0 });
     };
   }, [gl, invalidate, material]);
 
@@ -296,6 +309,7 @@ function Portrait() {
           if (S.imgs !== imgs) return;
           imgs[k] = img;
           settled[k] = true;
+          if (stage(k) === 0) prepare(k); // the entrance plays first: have these ready for the GPU
           active--;
           update();
           pump();
@@ -322,21 +336,49 @@ function Portrait() {
     pump();
   };
 
+  /**
+   * Decode a frame for the GPU off the main thread (an ImageBitmap), ahead of showing it. A few dozen are kept, least
+   * recently used dropped first (never one a texture is still showing); without createImageBitmap, frames upload as
+   * <img> as before.
+   */
+  const prepare = (k: number) => {
+    const S = seq.current;
+    const img = S.imgs[k];
+    if (k <= 0 || !img || S.bmps.has(k) || S.pend.has(k) || typeof createImageBitmap !== "function") return;
+    S.pend.add(k);
+    const imgs = S.imgs;
+    createImageBitmap(img, BITMAP).then(
+      (b) => {
+        S.pend.delete(k);
+        if (S.imgs !== imgs) { b.close(); return; }
+        S.bmps.set(k, b);
+        for (const [f, old] of S.bmps) {
+          if (S.bmps.size <= BMP_KEEP) break;
+          if (S.pool.some((s) => s.tex.image === old)) continue;
+          old.close(); S.bmps.delete(f);
+        }
+      },
+      () => { S.pend.delete(k); },
+    );
+  };
+
   /** GPU texture for a frame: frame 0 stays resident; others share a small pool (least recently shown is reused). */
   const texFor = (i: number): THREE.Texture | null => {
     const S = seq.current;
     if (i === 0) return S.tex0;
     let slot = S.pool.find((s) => s.frame === i);
     if (!slot) {
-      const img = S.imgs[i];
-      if (!img) return null;
+      const bmp = S.bmps.get(i);
+      if (bmp) { S.bmps.delete(i); S.bmps.set(i, bmp); } // most recently used goes last
+      else prepare(i); // for next time; this time the <img> uploads directly
+      const src = bmp ?? S.imgs[i];
+      if (!src) return null;
       if (S.pool.length < POOL) {
-        slot = { tex: frameTexture(img), frame: i, stamp: 0 };
+        slot = { tex: frameTexture(src), frame: i, stamp: 0 };
         S.pool.push(slot);
       } else {
         slot = S.pool.reduce((x, y) => (x.stamp <= y.stamp ? x : y));
-        slot.tex.image = img;
-        slot.tex.needsUpdate = true;
+        setFrame(slot.tex, src);
         slot.frame = i;
       }
     }
@@ -352,13 +394,30 @@ function Portrait() {
     return () => io.disconnect();
   }, [setFrameloop]);
 
+  // where the portrait sits inside the canvas. Scrolling moves both together and nothing animates the portrait's box,
+  // so it's measured again only when either changes size (reading it every frame forced a layout per frame while the
+  // page's other animations were changing styles)
+  const boxDirty = useRef(true);
+  useEffect(() => {
+    const mark = () => { boxDirty.current = true; };
+    const ro = new ResizeObserver(mark);
+    ro.observe(gl.domElement);
+    const portrait = document.getElementById("heroPortrait");
+    if (portrait) ro.observe(portrait);
+    addEventListener("resize", mark);
+    return () => { ro.disconnect(); removeEventListener("resize", mark); };
+  }, [gl]);
+
   useFrame((state, dt) => {
     dt = Math.min(dt, 0.05);
     fx.debug.heroFrames++;
-    const hero = gl.domElement.getBoundingClientRect();
-    const p = document.getElementById("heroPortrait")?.getBoundingClientRect();
-    if (p && hero.width > 0) {
-      box.set(((p.left + p.width / 2 - hero.left) / hero.width) * 2 - 1, 1 - ((p.top + p.height / 2 - hero.top) / hero.height) * 2, p.width / hero.width, p.height / hero.height);
+    if (boxDirty.current) {
+      const hero = gl.domElement.getBoundingClientRect();
+      const p = document.getElementById("heroPortrait")?.getBoundingClientRect();
+      if (p && hero.width > 0) {
+        box.set(((p.left + p.width / 2 - hero.left) / hero.width) * 2 - 1, 1 - ((p.top + p.height / 2 - hero.top) / hero.height) * 2, p.width / hero.width, p.height / hero.height);
+        boxDirty.current = false;
+      }
     }
     const u = material.uniforms;
     const S = seq.current;
@@ -416,6 +475,8 @@ function Portrait() {
     // load the next frame in the direction of travel onto the GPU now, so showing it later costs nothing
     if (Math.abs(target - S.f) > 0.01) {
       const ahead = target > S.f ? b + 1 : a - 1;
+      const dir = target > S.f ? 1 : -1;
+      for (let k = 1; k <= 4; k++) prepare(ahead + dir * k);
       if (ahead > 0 && ahead < SRC.length && has(ahead)) {
         const t = texFor(ahead);
         if (t) gl.initTexture(t);

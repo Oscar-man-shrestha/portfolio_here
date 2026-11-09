@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Mona_Sans, Michroma, JetBrains_Mono, Metal_Mania } from "next/font/google";
 import localFont from "next/font/local";
 import { FILM } from "@/lib/film";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 // All three families are SIL Open Font License 1.1 (Google Fonts). next/font downloads them at build time and
@@ -14,20 +15,27 @@ const jet = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variabl
 const jp = localFont({ src: "./fonts/dela-gothic-one-subset.woff2", variable: "--font-jp", display: "swap", preload: false });
 const metal = Metal_Mania({ subsets: ["latin"], weight: "400", variable: "--font-metal", display: "swap", preload: false });
 
-const description = "Oscar Man Shrestha: software engineer working across machine learning, security and the web.";
+// what search results show under the name: who, where, what, and the work by name
+const TITLE = "Oscar Man Shrestha · Software Engineer Portfolio";
+const description =
+  "Portfolio of Oscar Man Shrestha, a software engineer in Bangalore working across machine learning, security and the web: Baton Pass, Malware Fingerprint, RAKSHA and open source.";
 // the card shown when the link is shared (public/og.png, built by tools/og/build.py)
 const card = { url: "/og.png", width: 1200, height: 630, alt: "Oscar Man Shrestha, software engineer: machine learning, security, web" };
 
 export const metadata: Metadata = {
   // absolute links for the card: SITE_URL if set, else the Vercel production address, else local
-  metadataBase: new URL(
-    process.env.SITE_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:4500"),
-  ),
-  title: "Oscar Man Shrestha · Software Engineer",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
   description,
-  icons: { icon: "/img/avatar-pixel.webp" },
-  openGraph: { type: "website", title: "Oscar Man Shrestha · Software Engineer", description, images: [card], siteName: "Oscar Man Shrestha" },
-  twitter: { card: "summary_large_image", title: "Oscar Man Shrestha · Software Engineer", description, images: [card] },
+  applicationName: "Oscar Man Shrestha",
+  authors: [{ name: "Oscar Man Shrestha", url: SITE_URL }],
+  creator: "Oscar Man Shrestha",
+  keywords: ["Oscar Man Shrestha", "Oscar Shrestha", "oscarmanshrestha", "software engineer", "portfolio", "machine learning", "security", "web", "Bangalore"],
+  icons: { icon: "/img/avatar-pixel.webp", apple: "/img/avatar-pixel.webp" },
+  openGraph: { type: "profile", firstName: "Oscar", lastName: "Man Shrestha", title: TITLE, description, images: [card], siteName: "Oscar Man Shrestha", locale: "en_GB", url: "/" },
+  twitter: { card: "summary_large_image", title: TITLE, description, images: [card] },
+  // Google Search Console's ownership check: set GOOGLE_SITE_VERIFICATION to the code it gives (see README)
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
 };
 
 export const viewport: Viewport = {

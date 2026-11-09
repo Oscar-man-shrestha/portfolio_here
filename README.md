@@ -84,6 +84,67 @@ Opening a project from the mission wheel morphs the card into its page: the card
 
 Supported in Chrome, Edge and Safari 18.2+. Other browsers load the page as before, and reduced motion turns the morph off.
 
+## Baton, live
+
+The Baton project page runs Baton's real code on a chat. A visitor picks one of Baton's own evaluation chats or pastes one, and the page shows:
+- the topic Baton's trained topic layer detects, with confidence;
+- the sentences Baton's evidence selector would carry to the next AI, within its 520-token budget;
+- the best point of each earlier reply.
+
+`lib/baton/` holds Baton's `extractive.ts`, `embed.ts` and `topic-head.json`, copied unchanged from the Baton repo (MIT; the commit is named in each file), plus `run.ts`, which follows the same steps as Baton's `updateBrief`. It runs on the same MiniLM model as OMS-mini (loaded once and shared, `loadRuntime` in `lib/minilm.ts`). Token counts use `gpt-tokenizer`, as Baton does, loaded only when the demo runs. To update after Baton changes, copy those three files again.
+
+## Contribution City time-travel
+
+Under the city:
+- **Replay year:** rebuilds the year day by day in about six seconds, with a running total.
+- **Scrubber:** moves through the year by hand.
+- **Day details:** tapping a tower (or pressing "Details" for the scrubbed day) lists that day's public commits from GitHub's public search.
+
+The search runs in the visitor's browser, only when asked, with no key. GitHub allows a few such searches a minute, and the panel says so if the limit is hit. Contributions also count pull requests, reviews and private work, so a busy day can show few public commits (`components/CityTime.tsx`).
+
+## Spec sheet and the hidden puzzle
+
+- **System status**, above the footer (`components/SpecSheet.tsx`), shows real numbers about the visit, measured in the visitor's own browser:
+  - how long the main content took to appear (or the page to load);
+  - the data transferred;
+  - OMS-mini's model size;
+  - when GitHub was last synced.
+- **A small capture-the-flag** for curious developers (`lib/ctf.ts`, `components/Ctf.tsx`):
+  1. A banner in the browser console points to `oms.help()`.
+  2. A Base64 transmission in the page's `<head>` explains the cipher.
+  3. The flag is XOR-encrypted in another `<meta>`, and `oms.flag("...")` checks an answer against its SHA-256.
+
+  Solving it shows a panel with Oscar's email. The flag is in this public repo, so it's a bit of fun, not a secret.
+
+  **How visitors find it:** the footer says a flag is hidden and points to OMS-mini's `/ctf` command, and the console banner greets anyone who opens the console. Phones have no console, so OMS-mini plays it too:
+  - `/ctf` explains the stages;
+  - `/transmission` and `/cipher` show the hidden pieces;
+  - typing `flag{...}` checks an answer.
+
+  Asking about an "easter egg" or a "hidden game" also explains it.
+
+## Search
+
+- `app/sitemap.ts` and `app/robots.ts` serve `/sitemap.xml` and `/robots.txt`.
+- Every page has a canonical link.
+- Each project page uses its own film still as its share card.
+- The home page carries schema.org `Person` data (name, role, location, links, skills; only facts the site shows).
+- Absolute addresses come from `SITE_URL` (`lib/site.ts`), or Vercel's production address.
+- The title and description say who, what and where: "Oscar Man Shrestha · Software Engineer Portfolio", with Bangalore, the disciplines and the projects by name.
+- The home page's data is a `ProfilePage` about the `Person` (name variants "Oscar Shrestha" and "oscarmanshrestha" included), plus a `WebSite` entry so search results show his name as the site's name. Each project page carries a `SoftwareSourceCode` entry with its repository. `/manifest.webmanifest` names the site for home screens.
+
+**What gets it to the top of a search for his name** (the site can't do these itself):
+1. **A domain with his name**, such as `oscarmanshrestha.com`. It's the strongest single signal for a name search. On Vercel: Project → Settings → Domains, then set `SITE_URL` to it.
+2. **Google Search Console** (search.google.com/search-console): add the site, copy the HTML-tag code into a `GOOGLE_SITE_VERIFICATION` environment variable on Vercel, redeploy, verify, then submit `/sitemap.xml`. Bing Webmaster Tools can import from Search Console.
+3. **Links from his profiles to the site:** the GitHub profile's website field and profile README, LinkedIn's website field, the Instagram and Threads bios, and the `portfolio_here` repository's homepage. Google trusts a site that the same person's well-known profiles point to.
+4. **The same name everywhere** (Oscar Man Shrestha), as the site already uses.
+
+## Performance notes
+
+- The hero's portrait frames are decoded off the main thread (ImageBitmaps) and uploaded unflipped, with the shader flipping v. Uploading an `<img>` made the browser decode it again on the main thread: about 90 ms a frame on a slow phone, against 5 ms now.
+- The portrait's place in the canvas is measured only when sizes change, not every frame.
+- Together these cut Lighthouse's blocked main-thread time on a phone from 7.3 s to about 2 s. The remaining phone cost is mostly the intro film and the page's first full layout.
+
 ## Share card
 
 When the site's link is shared (LinkedIn, Slack, WhatsApp, X), the preview card is `public/og.png`: Oscar's real hero cut-out (frame 0 of the hero clip, unchanged) on the red sun, with his name and role in the site's fonts (Mona Sans and JetBrains Mono, both OFL, fetched from Google Fonts). The name, role, base and disciplines come from `lib/content.ts`. Rebuild it after changing any of them:

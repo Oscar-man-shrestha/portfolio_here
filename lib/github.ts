@@ -11,7 +11,8 @@ import snapshotDays from "@/data/contrib.json";
 import { prSnapshot, prTitles, projects, type PullRequest } from "./content";
 import type { Day } from "./contrib";
 
-export const GITHUB_USER = "Oscar-man-shrestha";
+import { GITHUB_USER } from "./site";
+export { GITHUB_USER };
 /** How often the pages re-read GitHub, in seconds (each page exports the same number as `revalidate`). */
 export const REFRESH = 3600;
 

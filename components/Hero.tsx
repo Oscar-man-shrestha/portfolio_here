@@ -87,8 +87,9 @@ export default function Hero({ prCount }: { prCount: number }) {
       <div className="hero__ctas">
         <a className="btn btn--signal magnetic" href="#work"><span>View work</span><b aria-hidden="true">↘</b></a>
         <a className="btn magnetic" href="#contact"><span>Get in touch</span></a>
-        <button type="button" className="hero__tour hud" data-tour-start><i aria-hidden="true">▶</i> 60-second tour</button>
       </div>
+      {/* its own line, so the two calls to action keep their room next to the tagline */}
+      <button type="button" className="hero__tour hud" data-tour-start><i aria-hidden="true">▶</i> 60-second tour</button>
 
       <div className="hero__bar hud" aria-hidden="true">
         <div className="prog">

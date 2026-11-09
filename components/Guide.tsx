@@ -20,6 +20,22 @@ declare global {
   interface Window { __omsGuide?: { match: (q: string) => Promise<{ id: string; score: number; via: string }>; model: () => ModelState } }
 }
 
+// ---------------- the hidden puzzle's commands ----------------
+const meta = (name: string) => document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content ?? "";
+async function ctfReply(q: string): Promise<string | null> {
+  const t = q.trim();
+  if (/^flag\{.*\}$/i.test(t)) {
+    const r = await window.oms?.flag(t);
+    return r === "captured" ? "**Flag captured.** Nicely done. Mention the flag when you write to Oscar." : "Access denied. Check the key and try again.";
+  }
+  if (/^\/transmission\b/i.test(t)) return `Transmission 02 (Base64):\n\n${meta("oms:transmission")}`;
+  if (/^\/cipher\b/i.test(t)) return `The cipher (hex bytes):\n\n${meta("oms:cipher")}`;
+  if (/^\/ctf\b|\b(ctf|capture the flag|easter ?egg|hidden (flag|game|challenge|puzzle)|secret (game|challenge|puzzle))\b/i.test(t)) {
+    return "There's a small capture-the-flag hidden on this site, in three stages:\n\n- Type **/transmission** for a Base64 message (it's also in the page's <head>).\n- Decode it: it explains how to read **/cipher**.\n- Send the flag here, like **flag{...}**, or with oms.flag(\"...\") in the browser console.\n\nOn a laptop, the console (F12) has its own way in.";
+  }
+  return null;
+}
+
 // ---------------- a small, safe markdown subset ----------------
 function linkTarget(url: string, email: string): { href: string; external: boolean } | null {
   if (/^\/(?!\/)/.test(url) || /^#[\w-]+$/.test(url)) return { href: url, external: false };
@@ -180,6 +196,13 @@ export default function Guide({ kb }: { kb: GuideKB }) {
     if (!question || busy) return;
     // "give me the tour", "quick tour": the guided tour answers it
     if (/\btour\b/i.test(question)) { setDraft(""); setOpen(false); startTour(); return; }
+    // the hidden puzzle (components/Ctf), playable here too, since phones have no console
+    const ctf = await ctfReply(question);
+    if (ctf) {
+      setDraft("");
+      setMsgs((list) => [...list, { role: "user", text: question }, { role: "assistant", text: ctf, note: "Capture the flag", next: ["/transmission", "/cipher"] }]);
+      return;
+    }
     setDraft("");
     setBusy(true);
     setMsgs((list) => [...list, { role: "user", text: question }, { role: "assistant", text: "", typing: true }]);
