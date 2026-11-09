@@ -100,7 +100,7 @@ Under the city:
 - **Scrubber:** moves through the year by hand.
 - **Day details:** tapping a tower (or pressing "Details" for the scrubbed day) lists that day's public commits from GitHub's public search.
 
-The search runs in the visitor's browser, only when asked, with no key. GitHub allows a few such searches a minute, and the panel says so if the limit is hit. Contributions also count pull requests, reviews and private work, so a busy day can show few public commits (`components/CityTime.tsx`).
+The panel asks this site's `/api/day`, which searches GitHub on the server and caches each day (a finished day for 24 hours, today and yesterday for 10 minutes). The browser never calls GitHub itself, so privacy blockers such as Brave Shields don't break it, and visitors don't hit GitHub's per-browser limits. It lists the public commits and the pull requests and issues opened that day (`app/api/day/route.ts`). Contributions also count pull requests, reviews and private work, so a busy day can show few public commits (`components/CityTime.tsx`).
 
 ## Spec sheet and the hidden puzzle
 

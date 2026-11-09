@@ -1,17 +1,18 @@
 "use client";
 
 // Contribution City time-travel: a scrubber (and a play button) that rebuilds the year day by day, with a running
-// total, and a day panel. Tapping a tower (or "Details" for the scrubbed day) lists that day's public commits,
-// fetched from GitHub's public search in the visitor's browser when asked (no key; GitHub allows a few searches a
-// minute). Contributions also count pull requests, reviews and private work, so a busy day can show few commits.
+// total, and a day panel. Tapping a tower (or "Details" for the scrubbed day) lists that day's public commits and
+// the pull requests and issues opened that day, from this site's /api/day (which asks GitHub and caches the answer,
+// so privacy blockers and GitHub's per-visitor limits don't get in the way). Contributions also count reviews and
+// private work, so a busy day can show little here.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DayActivity } from "@/app/api/day/route";
 import { fmtDay, type Day } from "@/lib/contrib";
-import { GITHUB_USER } from "@/lib/site";
 
-type Commit = { repo: string; message: string; url: string };
-type DayInfo = { index: number; state: "loading" | "done" | "error"; commits: Commit[]; total: number; note?: string };
+type Found = Pick<DayActivity, "commits" | "commitTotal" | "opened">;
+type DayInfo = { index: number; state: "loading" | "done" | "error"; found?: Found; note?: string };
 
-const cache = new Map<string, { commits: Commit[]; total: number }>();
+const cache = new Map<string, Found>();
 
 export default function CityTime({ days }: { days: Day[] }) {
   const last = days.length - 1;
@@ -43,20 +44,18 @@ export default function CityTime({ days }: { days: Day[] }) {
     const d = days[index];
     dispatchEvent(new CustomEvent("oms:city-sel", { detail: { index } }));
     const hit = cache.get(d.date);
-    if (hit) { setInfo({ index, state: "done", ...hit }); return; }
-    if (d.count === 0) { setInfo({ index, state: "done", commits: [], total: 0 }); return; }
-    setInfo({ index, state: "loading", commits: [], total: 0 });
+    if (hit) { setInfo({ index, state: "done", found: hit }); return; }
+    if (d.count === 0) { setInfo({ index, state: "done", found: { commits: [], commitTotal: 0, opened: [] } }); return; }
+    setInfo({ index, state: "loading" });
     try {
-      const q = encodeURIComponent(`author:${GITHUB_USER} author-date:${d.date}`);
-      const res = await fetch(`https://api.github.com/search/commits?q=${q}&sort=author-date&order=desc&per_page=8`, { headers: { Accept: "application/vnd.github+json" } });
-      if (res.status === 403 || res.status === 429) { setInfo({ index, state: "error", commits: [], total: 0, note: "GitHub's limit for searches without an account is a few a minute. Try again in a moment." }); return; }
-      if (!res.ok) throw new Error(String(res.status));
-      const j = (await res.json()) as { total_count: number; items: { html_url: string; repository: { full_name: string }; commit: { message: string } }[] };
-      const commits = j.items.map((c) => ({ repo: c.repository.full_name.split("/")[1], message: c.commit.message.split("\n")[0], url: c.html_url }));
-      cache.set(d.date, { commits, total: j.total_count });
-      setInfo((cur) => (cur?.index === index ? { index, state: "done", commits, total: j.total_count } : cur));
+      const res = await fetch(`/api/day?date=${d.date}`);
+      const j = (await res.json()) as DayActivity & { error?: string };
+      if (!res.ok) { setInfo((cur) => (cur?.index === index ? { index, state: "error", note: j.error ?? "Couldn't reach GitHub just now." } : cur)); return; }
+      const found = { commits: j.commits, commitTotal: j.commitTotal, opened: j.opened };
+      cache.set(d.date, found);
+      setInfo((cur) => (cur?.index === index ? { index, state: "done", found } : cur));
     } catch {
-      setInfo({ index, state: "error", commits: [], total: 0, note: "Couldn't reach GitHub just now." });
+      setInfo((cur) => (cur?.index === index ? { index, state: "error", note: "Couldn't reach GitHub just now." } : cur));
     }
   }, [days]);
 
@@ -90,19 +89,22 @@ export default function CityTime({ days }: { days: Day[] }) {
             <span><b>{sel.count}</b> contribution{sel.count === 1 ? "" : "s"} · {fmtDay(sel.date)}</span>
             <button type="button" className="ctime__x" aria-label="Close the day" onClick={() => { setInfo(null); dispatchEvent(new CustomEvent("oms:city-sel", { detail: { index: null } })); }}>×</button>
           </div>
-          {info.state === "loading" && <p className="ctime__msg">Asking GitHub for that day&apos;s public commits…</p>}
+          {info.state === "loading" && <p className="ctime__msg">Asking GitHub for that day&apos;s public activity…</p>}
           {info.state === "error" && <p className="ctime__msg">{info.note}</p>}
-          {info.state === "done" && (info.commits.length ? (
+          {info.state === "done" && info.found && (info.found.commits.length || info.found.opened.length ? (
             <>
               <ul className="ctime__list">
-                {info.commits.map((c) => (
+                {info.found.opened.map((o) => (
+                  <li key={o.url}><a href={o.url} target="_blank" rel="noopener noreferrer"><span className="mono">{o.kind === "pr" ? "PR" : "Issue"} · {o.repo}</span>{o.title}<span className="sr-only"> (opens in a new tab)</span></a></li>
+                ))}
+                {info.found.commits.map((c) => (
                   <li key={c.url}><a href={c.url} target="_blank" rel="noopener noreferrer"><span className="mono">{c.repo}</span>{c.message}<span className="sr-only"> (opens in a new tab)</span></a></li>
                 ))}
               </ul>
-              <p className="ctime__msg">{info.total > info.commits.length ? `${info.total} public commits that day; the newest ${info.commits.length} shown. ` : ""}Pull requests, reviews and private work count too.</p>
+              <p className="ctime__msg">{info.found.commitTotal > info.found.commits.length ? `${info.found.commitTotal} public commits that day; the newest ${info.found.commits.length} shown. ` : ""}Reviews and private work count too.</p>
             </>
           ) : (
-            <p className="ctime__msg">{sel.count ? "No public commits dated that day. Contributions also count pull requests, reviews and private work." : "No contributions that day."}</p>
+            <p className="ctime__msg">{sel.count ? "No public commits, pull requests or issues found for that day. GitHub also counts reviews and work in private repositories." : "No contributions that day."}</p>
           ))}
         </div>
       )}
