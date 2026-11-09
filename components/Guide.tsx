@@ -314,7 +314,7 @@ export default function Guide({ kb }: { kb: GuideKB }) {
           />
           <button type="submit" className="guide__send" disabled={busy || !draft.trim()} aria-label="Send">↵</button>
         </form>
-        <p className="guide__foot">OMS-mini runs on your device: MiniLM, a small pretrained model (23 MB), reads your question, and every answer comes from this site&apos;s content. Nothing you type leaves your browser.</p>
+        <p className="guide__foot">OMS-mini runs on your device: a small pretrained model (23 MB) reads your question, and every answer comes from this site&apos;s content. Nothing you type leaves your browser.</p>
       </section>
     </div>
   );
