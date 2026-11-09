@@ -157,12 +157,12 @@ When the site is deployed, set `SITE_URL` (for example `https://your-domain.com`
 
 ## Live GitHub data
 
-Everything the site shows from GitHub is read from GitHub itself and refreshed every hour, so it keeps up without editing the code (`lib/github.ts`):
+Everything the site shows from GitHub is read from GitHub itself and kept live, so it keeps up without editing the code (`lib/github.ts`):
 - **Contribution City:** the last year of contributions, from the public calendar on Oscar's profile.
 - **Open source:** pull requests to other people's projects that are merged, or open and lined up by the maintainers (a label such as "plan to merge", or a milestone such as "Release 0.12"). Closed-without-merging and unlabelled open PRs are left out. Newly merged PRs appear on their own. Card titles come from GitHub unless `prTitles` in `lib/content.ts` gives a shorter one.
 - **The hero's PR count, Baton's version tag** (its latest GitHub release) and OMS-mini's answers about all of these.
 
-How it stays live: the home page and project pages set `revalidate = 3600`. On Vercel, or any server running `next start`, Next.js rebuilds a page in the background at most once an hour, when someone visits. No key is needed. To raise GitHub's rate limit (useful on Vercel, whose servers share addresses), you can add a `GITHUB_TOKEN` environment variable: a fine-grained token with no permissions at all is enough. It's optional.
+How it stays live: the server re-reads the contribution calendar and pull requests every minute, and releases every five minutes (the pages set `revalidate = 60`). An open page also asks `/api/github` every minute while its tab is visible, and right away when you come back to it, then updates the stats, the 3D city, the open-source list and the sync time in place, with no reload (`lib/live.ts`, `components/ActivityLive.tsx`, `components/PatchList.tsx`). `/api/github` is cached for a minute, so GitHub is asked about once a minute however many people are reading: one search a minute, inside GitHub's limit of 10 a minute without a key. GitHub's own search and calendar can lag a few minutes behind a merge.
 
 When GitHub can't be reached:
 - **While the site is running:** visitors keep seeing the last good version; the next refresh tries again.
