@@ -75,7 +75,7 @@ export function buildTour(gh: Pick<GitHubData, "days" | "pullRequests">): TourSt
     },
     {
       id: "contact", label: "Contact", go: { section: "contact" }, spot: ".contact__mail",
-      text: `That's the tour. Press start: **${person.email}**${github ? ", or look through his GitHub" : ""}. Or ask me anything about Oscar.`,
+      text: `That's the tour. A new mission for Oscar? Brief him: **${person.email}**${github ? ", or look through his GitHub" : ""}. Or ask me anything about Oscar.`,
     },
   ];
 }
