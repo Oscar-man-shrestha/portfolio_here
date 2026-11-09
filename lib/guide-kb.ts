@@ -131,7 +131,7 @@ export function buildKB(gh: Pick<GitHubData, "days" | "pullRequests" | "releases
     {
       id: "web", action: { name: "show_project", target: "baton", label: "the Baton Pass card" }, keys: ["web", "frontend", "react", "javascript", "typescript"],
       q: ["web projects", "frontend work", "web development experience", "does he do web dev", "full stack work"],
-      a: `**Baton Pass** is a Chrome extension built with ${list(byId.baton.page.stack.slice(0, 3))}, and this site is built with Next.js, three.js and GSAP. His Loadout lists ${list([...(stack.find((s) => s.slot === "Frontend & mobile")?.items ?? []), ...(stack.find((s) => s.slot === "Backend")?.items ?? [])])}.`,
+      a: `**Baton Pass** is a Chrome extension built with ${list(byId.baton.page.stack.slice(0, 3))}. His Loadout lists ${list([...(stack.find((s) => s.slot === "Frontend & mobile")?.items ?? []), ...(stack.find((s) => s.slot === "Backend")?.items ?? [])])}.`,
       next: ["Tell me about Baton Pass", "How was this site built?", "What are his skills?"],
     },
     {
@@ -179,13 +179,13 @@ export function buildKB(gh: Pick<GitHubData, "days" | "pullRequests" | "releases
     {
       id: "site", action: show("top"), keys: ["site", "website", "portfolio", "flow", "video", "videos", "film", "three", "gsap", "nextjs"],
       q: ["how was this site built", "what is this website built with", "the tech behind this site", "how did he make this portfolio", "are the videos AI generated", "the intro film", "is the portrait real"],
-      a: "Oscar built this site with Next.js, three.js and GSAP. The intro film, the hero portrait animation, the profile turntable and the project films were made with Google Flow, an AI video tool, from his own photos.",
+      a: "Oscar designed and built this site himself: the 3D scenes, the scroll animations and OMS-mini all run in your browser. The intro film, the hero portrait animation, the profile turntable and the project films were generated with AI video from his own photos.",
       next: ["What are you?", "What does Oscar build?", "What are his skills?"],
     },
     {
-      id: "bot", keys: ["bot", "ai", "chatgpt", "gpt", "model", "minilm", "oms-mini", "omsmini"],
+      id: "bot", keys: ["bot", "ai", "chatgpt", "gpt", "model", "oms-mini", "omsmini"],
       q: ["who are you", "what are you", "are you an AI", "are you a bot", "how do you work", "is this Oscar", "am I talking to Oscar", "are you ChatGPT"],
-      a: "I'm OMS-mini, the small model built into this site. A pretrained language model (MiniLM, 23 MB) runs in your browser to understand your question, and every answer is written from the facts on this site, so I can't make things up about Oscar. I'm not Oscar, and nothing you type leaves your device.",
+      a: "I'm OMS-mini, the small model built into this site. A small pretrained language model (23 MB) runs in your browser to understand your question, and every answer is written from the facts on this site, so I can't make things up about Oscar. I'm not Oscar, and nothing you type leaves your device.",
       next: ["What does Oscar build?", "How was this site built?", "How can I contact him?"],
     },
     {

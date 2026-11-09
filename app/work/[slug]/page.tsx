@@ -81,7 +81,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
           // the poster sits behind the video: it is what shows before the film plays, with reduced motion, or without JS
           <section className="pj__film" aria-hidden="true" style={{ backgroundImage: `url(${p.film.poster})` }}>
             <video src={p.film.video} muted playsInline preload="metadata" />
-            <p className="pj__filmlabel hud"><span className="sq" />Mission film // made with Google Flow</p>
+            <p className="pj__filmlabel hud"><span className="sq" />Mission film</p>
           </section>
         )}
 

@@ -73,7 +73,7 @@ export default function BatonLive() {
           {phase.kind === "done" ? (
             <>
               <section>
-                <p className="hud blive__k">Topic // trained layer on MiniLM</p>
+                <p className="hud blive__k">Topic // Baton&apos;s trained topic layer</p>
                 <p className="blive__topic"><b>{names[phase.result.topic.label] ?? phase.result.topic.label}</b> {Math.round(phase.result.topic.confidence * 100)}%</p>
                 <ul className="blive__bars">
                   {Object.entries(phase.result.topic.probabilities).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
@@ -104,7 +104,7 @@ export default function BatonLive() {
       <p className="blive__src hud">
         Code: <a href="https://github.com/Oscar-man-shrestha/Baton/blob/7c5b076d338a/src/core/extractive.ts" target="_blank" rel="noopener noreferrer">extractive.ts</a> ·{" "}
         <a href="https://github.com/Oscar-man-shrestha/Baton/blob/7c5b076d338a/src/core/embed.ts" target="_blank" rel="noopener noreferrer">embed.ts</a> ·{" "}
-        <a href="https://github.com/Oscar-man-shrestha/Baton/blob/7c5b076d338a/src/model/topic-head.json" target="_blank" rel="noopener noreferrer">topic-head.json</a> · sample chats from Baton&apos;s evaluation set · MIT
+        <a href="https://github.com/Oscar-man-shrestha/Baton/blob/7c5b076d338a/src/model/topic-head.json" target="_blank" rel="noopener noreferrer">topic-head.json</a> · sample chats from Baton&apos;s evaluation set
       </p>
     </div>
   );
