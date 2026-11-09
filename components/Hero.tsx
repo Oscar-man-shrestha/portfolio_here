@@ -1,20 +1,21 @@
-import { images, person, projects, pullRequests } from "@/lib/content";
+import { images, person, projects } from "@/lib/content";
 import { Barcode, Emblem, JumpArrow, TextRing } from "./bits";
 import HeroGLMount from "./gl/HeroGLMount";
 
-const ticker = [
+const tickerFor = (prs: number) => [
   ...person.disciplines,
   person.base,
   "Portfolio 2026",
   `Selected work · ${String(projects.length).padStart(2, "0")}`,
-  `Open source · ${String(pullRequests.length).padStart(2, "0")} pull requests`,
+  `Open source · ${String(prs).padStart(2, "0")} pull requests`,
 ];
 
 function Oscar() {
   return <>Osc<span className="red">a</span>r</>;
 }
 
-export default function Hero() {
+export default function Hero({ prCount }: { prCount: number }) {
+  const ticker = tickerFor(prCount);
   return (
     <section className="hero" id="top" aria-labelledby="heroTitle">
       <div className="hero__glow" aria-hidden="true" />
@@ -87,6 +88,8 @@ export default function Hero() {
         <a className="btn btn--signal magnetic" href="#work"><span>View work</span><b aria-hidden="true">↘</b></a>
         <a className="btn magnetic" href="#contact"><span>Get in touch</span></a>
       </div>
+      {/* its own line, so the two calls to action keep their room next to the tagline */}
+      <button type="button" className="hero__tour hud" data-tour-start><i aria-hidden="true">▶</i> 60-second tour</button>
 
       <div className="hero__bar hud" aria-hidden="true">
         <div className="prog">

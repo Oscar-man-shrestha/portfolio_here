@@ -5,18 +5,17 @@
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { days, fmtDay } from "@/lib/contrib";
+import { fmtDay, type Day } from "@/lib/contrib";
 import { fx } from "@/lib/fx";
 import { useSite } from "@/lib/store";
 
-const WEEKS = Math.ceil(days.length / 7);
 const lvl = (c: number) => (c === 0 ? 0 : c <= 2 ? 1 : c <= 6 ? 2 : c <= 14 ? 3 : 4);
 const towerH = (c: number) => (c === 0 ? 0.07 : 0.34 + Math.sqrt(c) * 0.62);
 
 const vert = /* glsl */ `
 attribute float aIdx;
 attribute float aLevel;
-uniform float uGrow, uHover;
+uniform float uGrow, uHover, uUpto, uSel;
 varying vec2 vUv;
 varying vec3 vN;
 varying float vLevel, vHover, vRise;
@@ -25,10 +24,12 @@ void main() {
   float delay = (aIdx / 366.0) * 0.55;
   float g = clamp((uGrow - delay) / 0.45, 0.0, 1.0);
   g = 1.0 - pow(1.0 - g, 3.0);
+  // time-travel: days after uUpto haven't happened yet (the edge day rises with the fraction)
+  float shown = clamp(uUpto - aIdx + 1.0, 0.0, 1.0);
   vec3 p = position;
-  p.y *= max(g, 0.015);
+  p.y *= max(g * shown, 0.015);
   vRise = position.y;
-  vHover = 1.0 - step(0.5, abs(aIdx - uHover));
+  vHover = max(1.0 - step(0.5, abs(aIdx - uHover)), 1.0 - step(0.5, abs(aIdx - uSel)));
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(p, 1.0);
 }
 `;
@@ -69,7 +70,8 @@ void main() {
 }
 `;
 
-function City() {
+function City({ days }: { days: Day[] }) {
+  const WEEKS = Math.ceil(days.length / 7);
   const { size, camera, setFrameloop, gl } = useThree();
   const mesh = useRef<THREE.InstancedMesh>(null);
   const az = useRef({ base: 0.42, drag: 0, t: 0, dragging: false, lastX: 0 });
@@ -94,6 +96,8 @@ function City() {
     uniforms: {
       uGrow: { value: grow.current },
       uHover: { value: -10 },
+      uUpto: { value: 1e6 },
+      uSel: { value: -10 },
       uInk: { value: new THREE.Color("#121315") },
       uTop: { value: new THREE.Color("#2a2c2f") },
       uPaper: { value: new THREE.Color("#ecece6") },
@@ -182,6 +186,20 @@ function City() {
     if (Math.abs(cam.zoom - z) > 0.01) { cam.zoom = z; cam.updateProjectionMatrix(); }
   });
 
+  // the timeline under the map (components/CityTime) scrubs the year and selects a day
+  useEffect(() => {
+    const onUpto = (e: Event) => { const u = (e as CustomEvent<{ upto: number | null }>).detail.upto; uniforms.uUpto.value = u ?? 1e6; };
+    const onSel = (e: Event) => { const i = (e as CustomEvent<{ index: number | null }>).detail.index; uniforms.uSel.value = i ?? -10; };
+    addEventListener("oms:city-upto", onUpto);
+    addEventListener("oms:city-sel", onSel);
+    return () => { removeEventListener("oms:city-upto", onUpto); removeEventListener("oms:city-sel", onSel); };
+  }, [uniforms]);
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    if (e.instanceId === undefined || e.delta > 6) return; // a drag to orbit isn't a click
+    e.stopPropagation();
+    dispatchEvent(new CustomEvent("oms:city-day", { detail: { index: e.instanceId } }));
+  };
+
   const tip = useRef<HTMLElement | null>(null);
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     if (az.current.dragging || e.instanceId === undefined) return;
@@ -191,7 +209,7 @@ function City() {
     tip.current ??= document.getElementById("cityTip");
     const t = tip.current;
     if (!t) return;
-    t.innerHTML = `<b>${d.count}</b> contribution${d.count === 1 ? "" : "s"} · ${fmtDay(d.date)}`;
+    t.innerHTML = `<b>${d.count}</b> contribution${d.count === 1 ? "" : "s"} · ${fmtDay(d.date)} · tap for commits`;
     const r = gl.domElement.getBoundingClientRect();
     t.style.left = `${e.nativeEvent.clientX - r.left}px`;
     t.style.top = `${e.nativeEvent.clientY - r.top}px`;
@@ -208,12 +226,12 @@ function City() {
         <planeGeometry args={[WEEKS + 8, 15]} />
         <primitive object={groundMat} attach="material" />
       </mesh>
-      <instancedMesh ref={mesh} args={[geo, material, days.length]} onPointerMove={onMove} onPointerOut={onOut} />
+      <instancedMesh ref={mesh} args={[geo, material, days.length]} onPointerMove={onMove} onPointerOut={onOut} onClick={onClick} />
     </>
   );
 }
 
-export default function CityGL() {
+export default function CityGL({ days }: { days: Day[] }) {
   return (
     <Canvas
       orthographic
@@ -226,7 +244,7 @@ export default function CityGL() {
       style={{ position: "absolute", inset: 0 }}
       aria-hidden="true"
     >
-      <City />
+      <City days={days} />
     </Canvas>
   );
 }
