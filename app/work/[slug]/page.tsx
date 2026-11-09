@@ -9,8 +9,8 @@ import { person, projects } from "@/lib/content";
 import { getGitHub, liveTags } from "@/lib/github";
 import { SITE_URL } from "@/lib/site";
 
-// the version tag comes from the project's latest GitHub release (lib/github), re-read every hour
-export const revalidate = 3600;
+// the version tag comes from the project's latest GitHub release (lib/github), re-read every few minutes
+export const revalidate = 60;
 
 export function generateStaticParams() {
   return projects.map((p) => ({ slug: p.id }));

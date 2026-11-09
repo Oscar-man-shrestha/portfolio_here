@@ -19,8 +19,8 @@ import Tour from "@/components/Tour";
 import Ctf from "@/components/Ctf";
 import { CTF_CIPHER, CTF_HASH, CTF_TRANSMISSION } from "@/lib/ctf";
 
-// GitHub data (contributions, pull requests, releases) is re-read every hour; see lib/github
-export const revalidate = 3600;
+// GitHub data (contributions, pull requests, releases) is re-read every minute; see lib/github
+export const revalidate = 60;
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
@@ -72,7 +72,7 @@ export default async function Page() {
         <Hero prCount={gh.pullRequests.length} />
         <Marquee />
         <Work releases={gh.releases} />
-        <Activity days={gh.days} />
+        <Activity days={gh.days} fetchedAt={gh.fetchedAt} />
         <OpenSource pullRequests={gh.pullRequests} fetchedAt={gh.fetchedAt} />
         <Profile />
         <Contact fetchedAt={gh.fetchedAt} />

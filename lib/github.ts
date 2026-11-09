@@ -1,6 +1,6 @@
-// Live GitHub data: everything the site shows from GitHub comes from here, fetched on the server and refreshed every
-// hour (the pages using it set `revalidate`), so new contributions, merged pull requests and releases appear on
-// their own. No key is needed: the contribution calendar is GitHub's public profile calendar, and the pull requests
+// Live GitHub data: everything the site shows from GitHub comes from here, fetched on the server and re-read every
+// minute (releases every five; the pages using it set `revalidate`), so new contributions, merged pull requests and
+// releases appear on their own. An open page also asks /api/github every minute and updates in place (lib/live). No key is needed: the contribution calendar is GitHub's public profile calendar, and the pull requests
 // and releases come from GitHub's public API. A GITHUB_TOKEN environment variable (a token with no scopes at all is
 // enough) is used if present, only to raise GitHub's rate limit.
 //
@@ -13,18 +13,21 @@ import type { Day } from "./contrib";
 
 import { GITHUB_USER } from "./site";
 export { GITHUB_USER };
-/** How often the pages re-read GitHub, in seconds (each page exports the same number as `revalidate`). */
-export const REFRESH = 3600;
+/** How often the pages re-read GitHub, in seconds (each page exports the same number as `revalidate`). One search a
+ * minute stays well inside GitHub's limit for searches without a key (10 a minute). */
+export const REFRESH = 60;
+/** Releases change rarely and use GitHub's hourly allowance (60 calls without a key), so every five minutes. */
+const RELEASE_REFRESH = 300;
 
 /** A pull request counts as lined up when the maintainers label it like this (or put it in a milestone). */
 const PLANNED_LABEL = /\b(plan(ned)? to merge|ready (to|for) merge|merge[- ]ready|will merge|approved for merge)\b/i;
 
 const building = () => process.env.NEXT_PHASE === "phase-production-build";
 
-async function get(url: string, accept: string) {
+async function get(url: string, accept: string, revalidate = REFRESH) {
   const headers: Record<string, string> = { Accept: accept, "User-Agent": "oscar-portfolio" };
   if (process.env.GITHUB_TOKEN && url.startsWith("https://api.github.com/")) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  const res = await fetch(url, { headers, next: { revalidate: REFRESH } });
+  const res = await fetch(url, { headers, next: { revalidate } });
   if (!res.ok) throw new Error(`GitHub ${res.status} for ${url}`);
   return res;
 }
@@ -98,8 +101,8 @@ async function loadPullRequests(): Promise<PullRequest[]> {
 export type Release = { tag: string; license: string | null };
 async function loadRelease(repo: string): Promise<Release | null> {
   const [releases, info] = await Promise.all([
-    get(`https://api.github.com/repos/${repo}/releases?per_page=1`, "application/vnd.github+json").then((r) => r.json() as Promise<{ tag_name: string }[]>),
-    get(`https://api.github.com/repos/${repo}`, "application/vnd.github+json").then((r) => r.json() as Promise<{ license: { spdx_id: string } | null }>),
+    get(`https://api.github.com/repos/${repo}/releases?per_page=1`, "application/vnd.github+json", RELEASE_REFRESH).then((r) => r.json() as Promise<{ tag_name: string }[]>),
+    get(`https://api.github.com/repos/${repo}`, "application/vnd.github+json", RELEASE_REFRESH).then((r) => r.json() as Promise<{ license: { spdx_id: string } | null }>),
   ]);
   if (!releases.length) return null;
   const spdx = info.license?.spdx_id;
@@ -122,6 +125,13 @@ const VERSIONED = projects.filter((p) => p.tags.some((t) => /^v\d/.test(t))).map
 export function liveTags(p: { url: string; tags: string[] }, releases: GitHubData["releases"]): string[] {
   const r = releases[p.url.replace("https://github.com/", "")];
   return r ? p.tags.map((t) => (/^v\d/.test(t) ? [r.tag, r.license].filter(Boolean).join(" · ") : t)) : p.tags;
+}
+
+/** The parts an open page refreshes by itself (/api/github): contributions and pull requests. Throws if GitHub fails. */
+export type LiveGitHub = Pick<GitHubData, "days" | "pullRequests" | "fetchedAt">;
+export async function readLive(): Promise<LiveGitHub> {
+  const [days, pullRequests] = await Promise.all([loadDays(), loadPullRequests()]);
+  return { days, pullRequests, fetchedAt: new Date().toISOString() };
 }
 
 /** Everything at once; cached for one render, so every component on a page sees the same numbers. */

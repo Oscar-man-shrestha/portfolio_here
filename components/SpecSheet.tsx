@@ -4,6 +4,7 @@
 // browser (Navigation and Resource Timing, Largest Contentful Paint where the browser reports it), plus the facts
 // about OMS-mini and the GitHub sync. Nothing is sent anywhere; it only reads what the browser already knows.
 import { useEffect, useState } from "react";
+import { newer, useLive } from "@/lib/live";
 import { MODEL_BYTES } from "@/lib/minilm";
 
 type Spec = { paint?: number; paintKind: "LCP" | "load"; bytes?: number; cached: boolean; js?: number; requests?: number };
@@ -41,7 +42,8 @@ export default function SpecSheet({ fetchedAt }: { fetchedAt: string }) {
     return () => { po?.disconnect(); removeEventListener("load", later); };
   }, []);
 
-  const synced = new Date(fetchedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+  const live = newer(useLive(), fetchedAt);
+  const synced = new Date(live?.fetchedAt ?? fetchedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
   return (
     <section className="spec hud" aria-label="About this visit">
       <p className="spec__k"><span className="sq" />System status</p>
@@ -49,7 +51,7 @@ export default function SpecSheet({ fetchedAt }: { fetchedAt: string }) {
         <div><dt>{spec?.paintKind === "LCP" ? "Main content shown" : "Page loaded"}</dt><dd>{spec?.paint !== undefined ? `${(spec.paint / 1000).toFixed(2)} s` : "measuring…"}<small>on your device</small></dd></div>
         <div><dt>Transferred</dt><dd>{spec ? (spec.cached ? "from cache" : mb(spec.bytes ?? 0)) : "measuring…"}<small>{spec?.requests ? `${spec.requests} requests so far` : "this visit"}</small></dd></div>
         <div><dt>OMS-mini</dt><dd>{mb(MODEL_BYTES)}<small>model runs on your device · no server</small></dd></div>
-        <div><dt>GitHub sync</dt><dd>{synced} UTC<small>live data, refreshed hourly</small></dd></div>
+        <div><dt>GitHub sync</dt><dd>{synced} UTC<small>live data, updates every minute</small></dd></div>
       </dl>
     </section>
   );
