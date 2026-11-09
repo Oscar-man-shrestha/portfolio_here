@@ -27,7 +27,7 @@ export const person = {
   timeZone: "Asia/Kolkata",
   email: "oscarmanshrestha@gmail.com",
   about:
-    "I'm a software engineer working across machine learning, security and the web. My work ranges from a Markov-chain malware classifier and a Chrome extension to upstream fixes in Hugging Face Datasets, xarray and skrub.",
+    "I'm a software engineer working across machine learning, security and the web. My work ranges from a Markov-chain malware classifier and a Chrome extension to fixes in open-source libraries other developers rely on.",
   offClock: ["Guitar", "Karate", "Skateboarding"],
 };
 
@@ -60,6 +60,12 @@ export interface Project {
   stats?: Stat[];
   /** Which line-art diagram represents the project (drawn in code, not a fake screenshot). */
   visual: "relay" | "markov" | "beacon" | "gauge";
+  /**
+   * A short mood film for the project, made in Google Flow (a metaphor, not a screenshot: no text, no numbers).
+   * It plays over the diagram on the Work card and once at the top of the project page. `poster` is its last frame;
+   * `focus` is where the narrow card crop centres (the film's subject at the end).
+   */
+  film?: { video: string; poster: string; focus?: string };
   /** Facts for the project's demo page, taken from the repository README (8 Nov 2026). */
   page: {
     tagline: string;
@@ -86,6 +92,8 @@ export const projects: Project[] = [
       { value: "357", label: "automated tests" },
     ],
     visual: "relay",
+    // two holographic hands hand over a glowing baton: the conversation passing to the next assistant
+    film: { video: "/video/work/baton-1f27616f.mp4", poster: "/img/work/baton-94ae6aea.jpg", focus: "66% 50%" },
     page: {
       tagline: "Your AI ran out mid-project? Keep going in another one, with nothing lost.",
       problem:
@@ -118,6 +126,8 @@ export const projects: Project[] = [
     url: "https://github.com/Oscar-man-shrestha/malware_fingerprint",
     tags: ["Machine learning", "Security"],
     visual: "markov",
+    // a red signal spreads node to node through a state graph and ends on the central node
+    film: { video: "/video/work/malware-2985a58a.mp4", poster: "/img/work/malware-76503ca3.jpg" },
     page: {
       tagline: "A probability-first malware classifier with explainable maths and confidence intervals.",
       problem:
@@ -145,6 +155,8 @@ export const projects: Project[] = [
     url: "https://github.com/Oscar-man-shrestha/RAKSHA",
     tags: ["IoT", "ESP32", "Safety"],
     visual: "beacon",
+    // the bench node scans its surroundings and raises a hexagonal shield that catches the sparks
+    film: { video: "/video/work/raksha-41d058ca.mp4", poster: "/img/work/raksha-f95c7b1c.jpg" },
     page: {
       tagline: "A bench safety node for informal workshops, built for SDG 8.",
       problem:
@@ -173,6 +185,8 @@ export const projects: Project[] = [
     url: "https://github.com/Oscar-man-shrestha/eval-validity-edu",
     tags: ["Research", "Data"],
     visual: "gauge",
+    // a gauge's needle jumps into the red as if the score were perfect, a scan passes, and it settles in the middle
+    film: { video: "/video/work/eval-37e9455b.mp4", poster: "/img/work/eval-ca848c44.jpg" },
     page: {
       tagline: "Do next-item scores in educational logs measure learning, or just reward repetition?",
       problem:
@@ -200,20 +214,48 @@ export interface PullRequest {
   title: string;
   number: number;
   url: string;
+  /** Where it stands, as the project marks it on GitHub. Only merged PRs and PRs the maintainers have lined up
+   * (a "plan to merge" label or a milestone) are listed. */
+  status: { kind: "merged" | "planned"; label: string; detail: string };
 }
 
-// Opened by Oscar. The site does not claim they were merged.
-export const pullRequests: PullRequest[] = [
-  { repo: "huggingface/datasets", title: "Read-only shared caches", number: 8902, url: "https://github.com/huggingface/datasets/pull/8902" },
-  { repo: "pydata/xarray", title: "Shared HDF5 file handles", number: 11809, url: "https://github.com/pydata/xarray/pull/11809" },
-  { repo: "skrub-data/skrub", title: "GeoPandas column warning", number: 2374, url: "https://github.com/skrub-data/skrub/pull/2374" },
+/**
+ * The live list comes from GitHub (lib/github). This snapshot (checked 9 Nov 2026) is only used if a build runs
+ * without network access.
+ */
+export const prSnapshot: PullRequest[] = [
+  { repo: "harrisiirak/cron-parser", title: "Impossible day-of-month check", number: 470, url: "https://github.com/harrisiirak/cron-parser/pull/470", status: { kind: "merged", label: "Merged", detail: "merged" } },
+  { repo: "pydata/xarray", title: "Shared HDF5 file handles", number: 11809, url: "https://github.com/pydata/xarray/pull/11809", status: { kind: "planned", label: "Plan to merge", detail: 'open, labelled "plan to merge" by the maintainers' } },
+  { repo: "skrub-data/skrub", title: "GeoPandas column warning", number: 2374, url: "https://github.com/skrub-data/skrub/pull/2374", status: { kind: "planned", label: "Release 0.12 milestone", detail: "open, on the maintainers' Release 0.12 milestone" } },
 ];
 
+/** Shorter card titles for some pull requests ("owner/repo#number"); any other PR shows its own GitHub title. */
+export const prTitles: Record<string, string> = {
+  "harrisiirak/cron-parser#470": "Impossible day-of-month check",
+  "pydata/xarray#11809": "Shared HDF5 file handles",
+  "skrub-data/skrub#2374": "GeoPandas column warning",
+  "pydata/xarray#11863": "Clear error for a missing groupby dimension",
+  "pydata/xarray#11836": "Dask datetime units on Variable input",
+  "pandas-dev/pandas#71970": "groupby keeps colliding groupings",
+  "floating-ui/floating-ui#3546": "Zero coordinates stay anchored",
+  "scikit-learn-contrib/category_encoders#559": "JamesSteinEncoder with constant targets",
+  "huggingface/datasets#8902": "Read-only shared caches",
+};
+
+/**
+ * Oscar's list, plus what his own GitHub repositories use (languages and dependency files of his non-fork repos,
+ * checked 9 Nov 2026): e.g. PostgreSQL and MySQL drivers, Flask and FastAPI services, a Flutter app, Docker,
+ * Arduino sketches, Androguard and Frida in the malware work.
+ */
 export const stack: { slot: string; items: string[] }[] = [
-  { slot: "Languages", items: ["Python", "TypeScript", "Java", "C", "Dart"] },
-  { slot: "ML / Data", items: ["PyTorch", "scikit-learn", "NumPy", "Pandas"] },
-  { slot: "Web", items: ["React", "Next.js", "Node", "Express", "MongoDB"] },
-  { slot: "Systems", items: ["ESP32", "Chrome MV3", "Linux", "GitHub Actions"] },
+  { slot: "Languages", items: ["Python", "Java", "C++", "C", "SQL", "Haskell", "JavaScript", "TypeScript", "Dart", "Bash"] },
+  { slot: "ML / Data", items: ["NumPy", "pandas", "scikit-learn", "PyTorch", "SciPy", "Matplotlib", "Seaborn", "statsmodels", "NetworkX", "Data preprocessing", "Feature engineering"] },
+  { slot: "Frontend & mobile", items: ["React", "Next.js", "Tailwind CSS", "Three.js", "GSAP", "Vite", "Flutter"] },
+  { slot: "Backend", items: ["Node", "Express", "Flask", "FastAPI", "Socket.IO"] },
+  { slot: "Databases", items: ["MongoDB", "PostgreSQL", "MySQL", "Supabase", "Prisma", "Sequelize"] },
+  { slot: "Tools", items: ["Git", "GitHub", "GitHub Actions", "Docker", "Linux", "Ubuntu", "MATLAB", "Jupyter", "pytest", "Vitest"] },
+  { slot: "Systems & security", items: ["ESP32", "Arduino", "Chrome MV3", "ONNX Runtime", "Androguard", "Frida"] },
+  { slot: "Foundations", items: ["Data Structures and Algorithms", "Object-Oriented Programming", "Operating Systems", "Database Management Systems", "Problem-solving"] },
 ];
 
 export const nav = [

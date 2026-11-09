@@ -14,10 +14,20 @@ const jet = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variabl
 const jp = localFont({ src: "./fonts/dela-gothic-one-subset.woff2", variable: "--font-jp", display: "swap", preload: false });
 const metal = Metal_Mania({ subsets: ["latin"], weight: "400", variable: "--font-metal", display: "swap", preload: false });
 
+const description = "Oscar Man Shrestha: software engineer working across machine learning, security and the web.";
+// the card shown when the link is shared (public/og.png, built by tools/og/build.py)
+const card = { url: "/og.png", width: 1200, height: 630, alt: "Oscar Man Shrestha, software engineer: machine learning, security, web" };
+
 export const metadata: Metadata = {
+  // absolute links for the card: SITE_URL if set, else the Vercel production address, else local
+  metadataBase: new URL(
+    process.env.SITE_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:4500"),
+  ),
   title: "Oscar Man Shrestha · Software Engineer",
-  description: "Oscar Man Shrestha: software engineer working across machine learning, security and the web.",
+  description,
   icons: { icon: "/img/avatar-pixel.webp" },
+  openGraph: { type: "website", title: "Oscar Man Shrestha · Software Engineer", description, images: [card], siteName: "Oscar Man Shrestha" },
+  twitter: { card: "summary_large_image", title: "Oscar Man Shrestha · Software Engineer", description, images: [card] },
 };
 
 export const viewport: Viewport = {
@@ -28,7 +38,10 @@ export const viewport: Viewport = {
 };
 
 // Runs before first paint: decides whether the intro film plays (skipped with ?skip, on reduced motion or when it
-// was already seen this session, unless ?intro) and records the motion preference.
+// was already seen this session, unless ?intro) and records the motion preference. It also sets up the card-to-page
+// morph (the browser's cross-document View Transitions): just before the home page hands over to a project page, the
+// opening card's art, title and number take the names the project page gives its own (globals.css, v12), so the
+// browser morphs one into the other. Browsers without View Transitions simply load the page.
 const bootScript = `(function(){var q=new URLSearchParams(location.search),r=document.documentElement,rm=false,seen=false,off=false;
 try{rm=matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}
 try{off=localStorage.getItem("oms.motion")==="off"}catch(e){}
@@ -36,7 +49,18 @@ if(q.get("motion")==="reduce")rm=true;
 try{seen=sessionStorage.getItem("oms.intro")==="1"}catch(e){}
 r.classList.add("js");if(location.pathname==="/")r.classList.add("is-loading");
 if(rm||off)r.classList.add("reduce-motion");
-if(q.has("skip")||(seen&&!q.has("intro")))r.classList.add("no-intro");})();`;
+if(q.has("skip")||(seen&&!q.has("intro")))r.classList.add("no-intro");
+var vtNames=[[".mission__art","pj-art"],[".mission__title","pj-title"],[".mission__num","pj-num"]];
+addEventListener("pageswap",function(e){var vt=e.viewTransition;if(!vt)return;
+if(r.classList.contains("reduce-motion")){vt.ready.catch(function(){});vt.skipTransition();return}
+document.querySelectorAll(".mission__art,.mission__title,.mission__num").forEach(function(el){el.style.viewTransitionName=""});
+var to=e.activation&&e.activation.entry&&e.activation.entry.url;if(!to)return;
+var m=new URL(to).pathname.match(/^\\/work\\/([a-z0-9-]+)\\/?$/i);if(!m)return;
+var t=document.getElementById("m-"+m[1]),card=t&&t.closest(".mission__card");if(!card)return;
+var b=card.getBoundingClientRect();if(b.bottom<0||b.top>innerHeight)return;
+vtNames.forEach(function(p){var el=card.querySelector(p[0]);if(el)el.style.viewTransitionName=p[1]})});
+addEventListener("pagereveal",function(e){if(!e.viewTransition)return;
+if(r.classList.contains("reduce-motion")){e.viewTransition.ready.catch(function(){});e.viewTransition.skipTransition();return}r.setAttribute("data-vt","1")});})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

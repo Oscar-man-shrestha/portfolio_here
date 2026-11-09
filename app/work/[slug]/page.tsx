@@ -5,6 +5,10 @@ import MissionArt from "@/components/MissionArt";
 import ProjectFX from "@/components/ProjectFX";
 import Demo from "@/components/demos/Demo";
 import { person, projects } from "@/lib/content";
+import { getGitHub, liveTags } from "@/lib/github";
+
+// the version tag comes from the project's latest GitHub release (lib/github), re-read every hour
+export const revalidate = 3600;
 
 export function generateStaticParams() {
   return projects.map((p) => ({ slug: p.id }));
@@ -20,7 +24,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const i = projects.findIndex((x) => x.id === slug);
   if (i < 0) notFound();
-  const p = projects[i];
+  const p = { ...projects[i], tags: liveTags(projects[i], (await getGitHub()).releases) };
   const next = projects[(i + 1) % projects.length];
   const num = String(i + 1).padStart(2, "0");
   return (
@@ -48,6 +52,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             <span className="pj__num">{num}</span>
           </div>
         </section>
+
+        {p.film && (
+          // the poster sits behind the video: it is what shows before the film plays, with reduced motion, or without JS
+          <section className="pj__film" aria-hidden="true" style={{ backgroundImage: `url(${p.film.poster})` }}>
+            <video src={p.film.video} muted playsInline preload="metadata" />
+            <p className="pj__filmlabel hud"><span className="sq" />Mission film // made with Google Flow</p>
+          </section>
+        )}
 
         <section className="pj__demo" aria-labelledby="demoTitle">
           <header className="pj__demohead">

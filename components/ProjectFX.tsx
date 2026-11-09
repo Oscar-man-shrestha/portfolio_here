@@ -37,7 +37,9 @@ export default function ProjectFX() {
         },
       });
       if (reduce) return;
-      const title = document.querySelector(".pj__title");
+      // arriving through the card-to-page morph, the title and art are already in place
+      const morphed = root.getAttribute("data-vt") === "1";
+      const title = morphed ? null : document.querySelector(".pj__title");
       if (title) {
         SplitText.create(title, {
           type: "lines,words,chars", mask: "lines", autoSplit: true,
@@ -45,9 +47,16 @@ export default function ProjectFX() {
         });
       }
       gsap.from(".pj__tag, .pj__links, .pj__top", { y: 24, opacity: 0, duration: 1, ease: "expo.out", stagger: 0.08, delay: 0.35 });
-      gsap.from(".pj__art", { clipPath: "inset(0 0 100% 0)", duration: 1.3, ease: "expo.inOut", delay: 0.2, clearProps: "clipPath" });
+      if (!morphed) gsap.from(".pj__art", { clipPath: "inset(0 0 100% 0)", duration: 1.3, ease: "expo.inOut", delay: 0.2, clearProps: "clipPath" });
       gsap.utils.toArray<HTMLElement>("[data-reveal], .pj__demo").forEach((el) =>
         gsap.from(el, { y: 40, opacity: 0, duration: 1.1, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 88%", once: true } }));
+      // the mission film plays once when it comes into view, then holds on its last frame. It dissolves in over the
+      // poster behind it (that same last frame) once frames are moving, so the start is a fade rather than a cut
+      const film = document.querySelector<HTMLVideoElement>(".pj__film video");
+      if (film) {
+        film.addEventListener("playing", () => film.parentElement?.classList.add("is-on"), { once: true });
+        ScrollTrigger.create({ trigger: film, start: "top 75%", once: true, onEnter: () => { film.preload = "auto"; film.play().catch(() => {}); } });
+      }
     });
     return () => {
       ctx.revert();

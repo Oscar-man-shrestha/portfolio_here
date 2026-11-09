@@ -1,12 +1,7 @@
-// Real GitHub contribution data (53 weeks × 7 days of [ISO date, count]), summarised at build time.
-import raw from "@/data/contrib.json";
-
+// GitHub contribution days (fetched live by lib/github) and the stats the site shows about them.
 export type Day = { date: string; count: number };
 
-const weeks = raw as [string, number][][];
-export const days: Day[] = weeks.flat().map(([date, count]) => ({ date, count }));
-
-function summarise(list: Day[]) {
+export function summarise(list: Day[]) {
   let total = 0, active = 0, longest = 0, run = 0;
   let best: Day = list[0];
   const months = new Map<string, number>();
@@ -30,7 +25,7 @@ function summarise(list: Day[]) {
   };
 }
 
-export const contrib = summarise(days);
+export type ContribStats = ReturnType<typeof summarise>;
 
 export const fmtDay = (iso: string) =>
   new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });

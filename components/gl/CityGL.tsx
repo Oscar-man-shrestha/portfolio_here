@@ -5,11 +5,10 @@
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { days, fmtDay } from "@/lib/contrib";
+import { fmtDay, type Day } from "@/lib/contrib";
 import { fx } from "@/lib/fx";
 import { useSite } from "@/lib/store";
 
-const WEEKS = Math.ceil(days.length / 7);
 const lvl = (c: number) => (c === 0 ? 0 : c <= 2 ? 1 : c <= 6 ? 2 : c <= 14 ? 3 : 4);
 const towerH = (c: number) => (c === 0 ? 0.07 : 0.34 + Math.sqrt(c) * 0.62);
 
@@ -69,7 +68,8 @@ void main() {
 }
 `;
 
-function City() {
+function City({ days }: { days: Day[] }) {
+  const WEEKS = Math.ceil(days.length / 7);
   const { size, camera, setFrameloop, gl } = useThree();
   const mesh = useRef<THREE.InstancedMesh>(null);
   const az = useRef({ base: 0.42, drag: 0, t: 0, dragging: false, lastX: 0 });
@@ -213,7 +213,7 @@ function City() {
   );
 }
 
-export default function CityGL() {
+export default function CityGL({ days }: { days: Day[] }) {
   return (
     <Canvas
       orthographic
@@ -226,7 +226,7 @@ export default function CityGL() {
       style={{ position: "absolute", inset: 0 }}
       aria-hidden="true"
     >
-      <City />
+      <City days={days} />
     </Canvas>
   );
 }

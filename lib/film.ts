@@ -1,5 +1,5 @@
 // The intro film: "Who is Oscar?", a 43-second cyber-thriller Oscar made in Google Flow from his photos. The site
-// copy has the logo-like emblem cut out and the corner AI mark removed; the footer credits Google Flow instead.
+// copy has the logo-like emblem cut out and the corner AI mark removed.
 // File names carry a content hash: the site caches /video for a year, so a new cut must never reuse an old address.
 export const FILM = {
   /** 1280×720, sound included (the page starts it muted; the Sound button turns it on). */

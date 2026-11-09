@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
         source: "/(video|img)/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      {
+        // OMS-mini's on-device model and runtime: versioned folders, never changed in place
+        source: "/(models|vendor)/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

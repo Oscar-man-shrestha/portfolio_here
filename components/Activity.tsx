@@ -1,10 +1,11 @@
-import { contrib, days, fmtDay, fmtMonth } from "@/lib/contrib";
+import { fmtDay, fmtMonth, summarise, type Day } from "@/lib/contrib";
 import CityMount from "./gl/CityMount";
 
 export const level = (c: number) => (c === 0 ? 0 : c <= 2 ? 1 : c <= 6 ? 2 : c <= 14 ? 3 : 4);
 const fills = ["#1b1c1e", "#3a3d35", "#666b5c", "#a5aa98", "#ff2e4c"];
 
-export default function Activity() {
+export default function Activity({ days }: { days: Day[] }) {
+  const contrib = summarise(days);
   const weeks = Math.ceil(days.length / 7);
   const cell = 10, gap = 3;
   const w = weeks * (cell + gap) - gap, h = 7 * (cell + gap) - gap;
@@ -13,7 +14,7 @@ export default function Activity() {
       <header className="sec__head sec__head--wide">
         <p className="sec__kicker hud"><span className="sq" />02 // 活動 // Player stats</p>
         <h2 className="sec__title split" data-echo="Contribution city" id="activityTitle">Contribution city</h2>
-        <p className="sec__lede">My last 12 months on GitHub: one tower per day, {fmtDay(contrib.from)} to {fmtDay(contrib.to)}.</p>
+        <p className="sec__lede">Every tower is one day of my commits, pull requests and reviews on GitHub, {fmtDay(contrib.from)} to {fmtDay(contrib.to)}. Live, refreshed hourly.</p>
       </header>
       <div className="activity__grid">
         <div className="stats">
@@ -52,7 +53,7 @@ export default function Activity() {
               <rect key={d.date} x={Math.floor(i / 7) * (cell + gap)} y={(i % 7) * (cell + gap)} width={cell} height={cell} fill={fills[level(d.count)]} />
             ))}
           </svg>
-          <CityMount />
+          <CityMount days={days} />
           <div className="map__tip mono" id="cityTip" aria-hidden="true" />
           <figcaption className="map__legend hud">
             <span>Less</span>

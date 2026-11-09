@@ -37,6 +37,8 @@ function run(): Dispose {
   disposers.push(() => ctx.revert());
   // looping "ambient" animations (ticker, type band) that the Motion switch pauses
   const ambient: gsap.core.Animation[] = [];
+  // each Work card's film, keyed by its <li>: setupFilms fills it, setupWork decides when each plays
+  const films = new Map<HTMLElement, { play: () => void; stop: () => void }>();
 
   const M = (window.__oms = { boot: performance.now(), log: [] as string[], state: "loading" });
   const log = (m: string) => M.log.push(`${Math.round(performance.now() - M.boot)}ms ${m}`);
@@ -394,6 +396,7 @@ function run(): Dispose {
         gsap.from(el, { y: 36, opacity: 0, duration: 1.1, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 90%", once: true } }));
     }
 
+    setupFilms();
     setupWork();
     setupActivity();
     setupOss();
@@ -452,59 +455,222 @@ function run(): Dispose {
   }
 
   function setupWork() {
-    const track = $("#workTrack"), pin = $(".work__pin");
-    if (!track || !pin) return;
-    const cards = $$(".mission", track);
-    const bar = $("#workBar"), count = $("#workCount");
+    const sec = $("#work"), track = $("#workTrack"), pin = $(".work__pin");
+    if (!sec || !track || !pin) return;
+    const missions = $$(".mission", track);
+    const items = $$(":scope > li", track); // the missions plus the end card
+    const bar = $("#workBar"), count = $("#workCount"), dial = $(".work__dial", pin), dialNum = $("#workDialNum");
+    const ring = $<SVGSVGElement>(".work__ring", pin);
+    const pad = (k: number) => String(k).padStart(2, "0");
     const mm = gsap.matchMedia();
     disposers.push(() => mm.revert());
-    mm.add({ wide: "(min-width: 768px)", narrow: "(max-width: 767px)" }, (c) => {
-      const { wide } = c.conditions as { wide: boolean };
-      if (wide) {
-        // travel = track width minus the visible width between the two gutters (the pin sits one gutter in)
-        const dist = () => Math.max(0, track.scrollWidth - innerWidth + 2 * pin.getBoundingClientRect().left);
-        const tween = gsap.to(track, {
-          x: () => -dist(), ease: "none",
-          scrollTrigger: {
-            trigger: pin, start: "top top", end: () => "+=" + dist(), pin: true, scrub: reduce ? true : 0.8, invalidateOnRefresh: true, anticipatePin: 1, refreshPriority: 2,
-            onUpdate: (st) => {
-              if (bar) bar.style.transform = `scaleX(${st.progress})`;
-              if (count) count.textContent = `${String(Math.min(cards.length, 1 + Math.floor(st.progress * cards.length))).padStart(2, "0")}/${String(cards.length).padStart(2, "0")}`;
-            },
-          },
-        });
-        cards.forEach((card) => {
-          const d = drawIn(card), loop = artLoops(card);
-          ScrollTrigger.create({
-            trigger: card, containerAnimation: tween, start: "left 85%", end: "right 0%",
-            onEnter: () => { d.play(); if (!reduce) loop.play(); },
-            onEnterBack: () => { if (!reduce) loop.play(); },
-            onLeave: () => loop.pause(), onLeaveBack: () => loop.pause(),
-          });
-        });
-        // keyboard users: bring a focused card into view inside the horizontal track. A native scroll is used
-        // (Lenis follows it); in testing, Lenis's own immediate scrollTo did not move the page from a focus event.
-        const onFocus = (e: Event) => {
-          const card = (e.target as HTMLElement).closest(".mission") as HTMLElement | null;
-          const st = tween.scrollTrigger;
-          if (!card || !st) return;
-          const x = Math.min(dist(), Math.max(0, card.offsetLeft - innerWidth * 0.08));
-          const y = st.start + (x / Math.max(1, dist())) * (st.end - st.start);
-          window.scrollTo(0, y);
-          // the browser's own focus scrolling can run after this handler; re-apply on the next frame so ours wins
-          requestAnimationFrame(() => { window.scrollTo(0, y); lenis?.resize(); });
-        };
-        track.addEventListener("focusin", onFocus);
-        return () => track.removeEventListener("focusin", onFocus);
-      }
-      cards.forEach((card) => {
-        const d = drawIn(card), loop = artLoops(card);
+    mm.add({ wheel: "(min-height: 500px)", list: "(max-height: 499px)" }, (c) => {
+      if ((c.conditions as { wheel: boolean }).wheel) return wheel();
+      // screens under 500px tall (a phone held sideways): a plain list. Each card draws as it scrolls in and plays
+      // its film once mostly in view.
+      const ios: IntersectionObserver[] = [], timers = new Map<HTMLElement, number>();
+      missions.forEach((li) => {
+        const d = drawIn(li), loop = artLoops(li);
         ScrollTrigger.create({
-          trigger: card, start: "top 80%", end: "bottom top",
+          trigger: li, start: "top 80%", end: "bottom top",
           onEnter: () => { d.play(); if (!reduce) loop.play(); },
           onEnterBack: () => { if (!reduce) loop.play(); },
           onLeave: () => loop.pause(), onLeaveBack: () => loop.pause(),
         });
+        const f = films.get(li), art = $(".mission__art", li);
+        if (!f || !art) return;
+        const io = new IntersectionObserver(([e]) => {
+          clearTimeout(timers.get(li));
+          // fully out of view: back to the line-art, and the film plays again next time the card comes in
+          if (!e.isIntersecting) { f.stop(); return; }
+          // isIntersecting stays true below the threshold, so check the ratio; a card already showing its film keeps it
+          if (e.intersectionRatio >= 0.59 && !art.classList.contains("film-on")) timers.set(li, window.setTimeout(f.play, 1600)); // let the line-art draw in first
+        }, { threshold: [0, 0.6] });
+        io.observe(art);
+        ios.push(io);
+      });
+      // OMS-mini (the AI guide) can bring a project's card into view
+      const onGuide = (ev: Event) => {
+        const op = (ev as CustomEvent<{ name?: string; target?: string }>).detail;
+        if (op?.name !== "show_project" || !op.target) return;
+        const li = missions.find((m) => m.querySelector(`#m-${CSS.escape(op.target!)}`));
+        if (!li) return;
+        if (lenis) lenis.scrollTo(li, { offset: -24, duration: 1.2 });
+        else li.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      };
+      window.addEventListener("oms:guide", onGuide);
+      return () => {
+        window.removeEventListener("oms:guide", onGuide);
+        ios.forEach((o) => o.disconnect()); timers.forEach((t) => clearTimeout(t)); films.forEach((f) => f.stop());
+      };
+    });
+
+    // Any screen at least 500px tall, phones included: the cards sit on a wheel whose hub, the dial, is at the bottom
+    // of the pinned stage. Scrolling turns it and it settles on each card in turn; the front card stands upright and
+    // plays its film. Positions use the individual rotate/scale properties, so they compose with the GSAP hover tilt
+    // on the card's transform.
+    function wheel() {
+      sec!.classList.add("work--fan");
+      const n = items.length, last = n - 1;
+      const faces = items.map((li) => $(".mission__card, .work__endcard", li)!);
+      const g = { H: 0, w: 0, h: 0, R: 0, hub: 0, step: 36 };
+      const measure = () => {
+        g.H = pin!.clientHeight; g.w = items[0].offsetWidth; g.h = items[0].offsetHeight;
+        g.hub = g.H * 0.95;
+        g.R = Math.max(g.H * 0.52, g.h / 2 + 130);
+        // neighbours overlap the front card by about a fifth of its width
+        g.step = gsap.utils.clamp(24, 42, (Math.asin(Math.min(0.95, (0.78 * g.w) / g.R)) * 180) / Math.PI);
+        items.forEach((li) => { li.style.top = `${g.hub - g.R - g.h / 2}px`; li.style.transformOrigin = `50% ${g.R + g.h / 2}px`; });
+        if (dial) {
+          const r = Math.max(90, g.R - g.h / 2 - 24);
+          Object.assign(dial.style, { width: `${2 * r}px`, height: `${2 * r}px`, marginLeft: `${-r}px`, top: `${g.hub - r}px` });
+        }
+      };
+      const state = { a: 0 };
+      let front = -1, stageIn = false, filmTimer = 0, drawnAt = 0;
+      const queueFilm = () => {
+        clearTimeout(filmTimer);
+        films.forEach((f, li) => { if (li !== items[front]) f.stop(); });
+        const li = items[front], f = films.get(li);
+        if (!f || !stageIn) return;
+        // the first card waits for its line-art to finish drawing; later ones for the wheel to settle
+        const wait = Math.max(650, 1600 - (performance.now() - drawnAt));
+        filmTimer = window.setTimeout(() => { if (stageIn && items[front] === li) f.play(); }, wait);
+      };
+      const setFront = (i: number) => {
+        front = i;
+        items.forEach((li, k) => li.classList.toggle("is-front", k === i));
+        const m = Math.min(i + 1, missions.length);
+        if (count) count.textContent = `${pad(m)}/${pad(missions.length)}`;
+        if (dialNum) dialNum.textContent = pad(m);
+        queueFilm();
+      };
+      const layout = () => {
+        const a = state.a;
+        items.forEach((li, i) => {
+          const ad = Math.abs(i - a);
+          li.style.rotate = `${((i - a) * g.step).toFixed(3)}deg`;
+          faces[i].style.scale = (1 - 0.09 * Math.min(ad, 2)).toFixed(4);
+          li.style.setProperty("--veil", (Math.min(ad, 2) * 0.3).toFixed(3));
+          li.style.zIndex = String(50 - Math.round(ad * 10));
+          // cards far round the wheel fade out; not visibility: hidden, which would drop their links from the Tab order
+          li.style.opacity = ad > 2.2 ? Math.max(0, 3.2 - ad).toFixed(3) : "";
+        });
+        if (ring) ring.style.rotate = `${(-a * g.step).toFixed(3)}deg`;
+        if (bar) bar.style.transform = `scaleX(${a / last})`;
+        const f = Math.min(last, Math.max(0, Math.round(a)));
+        if (f !== front) setFront(f);
+      };
+      measure();
+      layout();
+      const tween = gsap.to(state, {
+        a: last, ease: "none", onUpdate: layout,
+        scrollTrigger: {
+          trigger: pin, start: "top top", end: () => { measure(); return "+=" + last * g.H * 0.75; },
+          pin: true, scrub: reduce ? true : 0.8, invalidateOnRefresh: true, anticipatePin: 1, refreshPriority: 2, onRefresh: layout,
+        },
+      });
+      const st = tween.scrollTrigger!;
+      const yFor = (i: number) => st.start + (i / last) * (st.end - st.start);
+      const go = (i: number, smooth: boolean) => {
+        const y = yFor(i);
+        if (smooth && lenis) lenis.scrollTo(y, { duration: gsap.utils.clamp(0.9, 1.8, Math.abs(y - scrollY) / 2500) });
+        else window.scrollTo({ top: y, behavior: smooth ? "smooth" : "instant" });
+      };
+
+      // the diagrams draw once the stage is in view; films only play while it is
+      const draws = missions.map((li) => drawIn(li)), loops = missions.map((li) => artLoops(li));
+      let drawn = false;
+      const io = new IntersectionObserver(([e]) => {
+        stageIn = e.isIntersecting && e.intersectionRatio >= 0.44;
+        if (stageIn && !drawn) { drawn = true; drawnAt = performance.now(); draws.forEach((d, k) => gsap.delayedCall(k * 0.12, () => { d.play(); })); }
+        loops.forEach((l) => (stageIn && !reduce ? l.play() : l.pause()));
+        if (stageIn) queueFilm();
+        else { clearTimeout(filmTimer); films.forEach((f) => f.stop()); }
+      }, { threshold: [0, 0.45] });
+      io.observe(pin!);
+
+      // when scrolling stops between two cards, finish the turn to the nearest one
+      const onScrollEnd = () => {
+        if (reduce || !st.isActive) return;
+        const p = st.progress * last, i = Math.round(p);
+        if (Math.abs(p - i) > 0.01) go(i, true);
+      };
+      ScrollTrigger.addEventListener("scrollEnd", onScrollEnd);
+      // clicking a card at the side turns it to the front instead of opening it (keyboard clicks have detail 0
+      // and pass: focusing the link has already turned the wheel)
+      const onClick = (e: Event) => {
+        if ((e as MouseEvent).detail === 0) return;
+        const li = (e.target as HTMLElement).closest<HTMLElement>(".work__track > li"), i = li ? items.indexOf(li) : -1;
+        if (i < 0 || i === front) return;
+        e.preventDefault();
+        e.stopPropagation();
+        go(i, !reduce);
+      };
+      // keyboard users: focusing a link in any card turns that card to the front. A native scroll is used (Lenis
+      // follows it), re-applied on the next frame because the browser's own focus scrolling can run after this.
+      const onFocus = (e: Event) => {
+        const li = (e.target as HTMLElement).closest<HTMLElement>(".work__track > li"), i = li ? items.indexOf(li) : -1;
+        if (i < 0) return;
+        // where overflow: clip is unsupported these are scroll containers the browser may have moved to reveal the link
+        if (sec!.scrollLeft) sec!.scrollLeft = 0;
+        if (pin!.scrollLeft || pin!.scrollTop) { pin!.scrollLeft = 0; pin!.scrollTop = 0; }
+        const y = yFor(i);
+        window.scrollTo(0, y);
+        requestAnimationFrame(() => { window.scrollTo(0, y); lenis?.resize(); });
+      };
+      track!.addEventListener("click", onClick, true);
+      track!.addEventListener("focusin", onFocus);
+      // OMS-mini (the AI guide) can turn the wheel to a project; that card's film then plays as usual
+      const onGuide = (ev: Event) => {
+        const op = (ev as CustomEvent<{ name?: string; target?: string }>).detail;
+        if (op?.name !== "show_project" || !op.target) return;
+        const i = items.findIndex((li) => li.querySelector(`#m-${CSS.escape(op.target!)}`));
+        if (i >= 0) go(i, !reduce);
+      };
+      window.addEventListener("oms:guide", onGuide);
+      return () => {
+        sec!.classList.remove("work--fan");
+        io.disconnect();
+        clearTimeout(filmTimer);
+        ScrollTrigger.removeEventListener("scrollEnd", onScrollEnd);
+        track!.removeEventListener("click", onClick, true);
+        track!.removeEventListener("focusin", onFocus);
+        window.removeEventListener("oms:guide", onGuide);
+        films.forEach((f) => f.stop());
+        items.forEach((li, i) => {
+          li.classList.remove("is-front");
+          for (const p of ["rotate", "top", "transform-origin", "z-index", "opacity", "--veil"]) li.style.removeProperty(p);
+          faces[i].style.removeProperty("scale");
+        });
+        if (ring) ring.style.removeProperty("rotate");
+        if (dial) for (const p of ["width", "height", "margin-left", "top"]) dial.style.removeProperty(p);
+      };
+    }
+  }
+
+  // ---------------- mission films: each card's film fades in over its line-art once frames are moving ----------------
+  // setupWork decides when each one plays: the front card of the wheel on wide screens, each card as it scrolls into
+  // view on phones.
+  function setupFilms() {
+    if (reduce) return;
+    $$(".mission").forEach((li) => {
+      const art = $(".mission__art", li), film = $<HTMLVideoElement>(".mission__film", li);
+      if (!art || !film) return;
+      // the film fades in only once frames are moving, so its poster (the last frame) never flashes up first
+      listen(film, "playing", () => art.classList.add("film-on"));
+      const play = () => {
+        film.preload = "auto";
+        if (film.ended || film.currentTime > 0.05) film.currentTime = 0;
+        film.play().catch(() => art.classList.remove("film-on"));
+      };
+      const stop = () => { art.classList.remove("film-on"); film.pause(); };
+      films.set(li, { play, stop });
+      // hovering the card plays its film again; on the wheel, only the front card
+      const card = $(".mission__card", li);
+      if (card && fine) listen(card, "pointerenter", () => {
+        if (li.closest(".work--fan") && !li.classList.contains("is-front")) return;
+        if (film.ended || film.paused) play();
       });
     });
   }
@@ -570,20 +736,17 @@ function run(): Dispose {
   function setupContact() {
     const words = $$(".contact__title .w");
     if (reduce || !words.length) return;
-    const ghosts = words.map((w) => {
-      const g = document.createElement("span");
-      g.className = "ghost"; g.textContent = w.textContent; g.setAttribute("aria-hidden", "true");
-      w.appendChild(g); return g;
-    });
     const rnd = gsap.utils.random;
     const from = words.map(() => ({ x: rnd(-280, 280), y: rnd(-220, -60), r: rnd(-28, 28) }));
     const tl = gsap.timeline({ scrollTrigger: { trigger: ".contact__title", start: "top 78%", once: true } });
     words.forEach((w, i) => {
       const f = from[i];
       tl.from(w, { x: f.x, y: f.y, rotation: f.r, opacity: 0, filter: "blur(10px)", duration: 1.5, ease: "expo.out" }, i * 0.14);
-      tl.fromTo(ghosts[i], { x: f.x * 0.25, y: f.y * 0.25 + 30, opacity: 0.9 }, { x: 0, y: 0, opacity: 0, duration: 1.7, ease: "expo.out" }, i * 0.14 + 0.08);
+      // the outline ghost is the word's ::after (CSS); it trails in through these custom properties
+      tl.fromTo(w, { "--gx": `${f.x * 0.25}px`, "--gy": `${f.y * 0.25 + 30}px`, "--go": 0.9 }, { "--gx": "0px", "--gy": "0px", "--go": 0, duration: 1.7, ease: "expo.out" }, i * 0.14 + 0.08);
     });
-    tl.from(".contact__mail", { y: 30, opacity: 0, duration: 1, ease: "expo.out" }, 0.5)
+    tl.from(".contact__lede", { y: 24, opacity: 0, duration: 1, ease: "expo.out" }, 0.4)
+      .from(".contact__mail", { y: 30, opacity: 0, duration: 1, ease: "expo.out" }, 0.5)
       .from(".contact__links li", { y: 24, opacity: 0, duration: 0.8, ease: "expo.out", stagger: 0.06 }, 0.7)
       .from(".contact__fig", { opacity: 0, x: 40, duration: 1.4, ease: "expo.out" }, 0.4);
   }
@@ -633,7 +796,7 @@ function run(): Dispose {
     listen(document, "pointerover", (ev) => {
       const t = (ev.target as HTMLElement).closest("a, button, .turn, .map__gl");
       cur.classList.toggle("is-hover", !!t);
-      label = !t ? "" : t.matches(".turn") ? "Drag ◂▸" : t.matches(".map__gl") ? "Drag · hover" : (t as HTMLAnchorElement).target === "_blank" ? "Open ↗" : "Go ↘";
+      label = !t ? "" : t.closest(".work--fan .work__track > li:not(.is-front)") ? "Bring forward" : t.matches(".turn") ? "Drag ◂▸" : t.matches(".map__gl") ? "Drag · hover" : (t as HTMLAnchorElement).target === "_blank" ? "Open ↗" : "Go ↘";
     });
     listen(document.documentElement, "pointerleave", () => cur.classList.remove("is-on"));
 
@@ -682,6 +845,20 @@ function run(): Dispose {
       ev.preventDefault();
       scrollToHash(hash);
       history.replaceState(null, "", hash === "#top" ? location.pathname + location.search : hash);
+    });
+    // OMS-mini (the AI guide, components/Guide) asks the page to show a section
+    listen(window, "oms:guide", (ev) => {
+      const op = (ev as CustomEvent<{ name?: string; target?: string }>).detail;
+      if (op?.name === "show_section" && op.target && document.getElementById(op.target)) scrollToHash("#" + op.target);
+    });
+    // the tour asks for an element inside a section, centred on screen
+    listen(window, "oms:scroll", (ev) => {
+      const sel = (ev as CustomEvent<{ selector?: string }>).detail?.selector;
+      const el = sel ? document.querySelector<HTMLElement>(sel) : null;
+      if (!el) return;
+      const offset = -Math.max(72, (innerHeight - el.getBoundingClientRect().height) / 2);
+      if (lenis) lenis.scrollTo(el, { offset, duration: 1.4, easing: (x: number) => 1 - Math.pow(1 - x, 4) });
+      else window.scrollTo({ top: el.getBoundingClientRect().top + scrollY + offset, behavior: reduce ? "auto" : "smooth" });
     });
     const replay = $("#replayIntro");
     if (replay) listen(replay, "click", () => { try { sessionStorage.removeItem("oms.intro"); } catch {} location.href = location.pathname + "?intro"; });
